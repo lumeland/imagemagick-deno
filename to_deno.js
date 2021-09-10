@@ -13,5 +13,7 @@ await convert({
   copy: {
     "magick.ts": "src/wasm/magick.ts",
     "mod.ts": "mod.ts",
+    "magick-wasm/license.txt": "LICENSE",
+    "README.md": "README.md",
   },
 });
