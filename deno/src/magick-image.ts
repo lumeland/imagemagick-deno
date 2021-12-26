@@ -32,12 +32,14 @@ import {
   IPixelCollection,
   PixelCollection,
 } from "./pixels/pixel-collection.ts";
+import { PixelInterpolateMethod } from "./pixel-interpolate-method.ts";
 import { Point } from "./point.ts";
 import { Pointer } from "./internal/pointer/pointer.ts";
 import { Quantum } from "./quantum.ts";
 import { StringInfo } from "./internal/string-info.ts";
 import { VirtualPixelMethod } from "./virtual-pixel-method.ts";
 import { _createString, _withString } from "./internal/native/string.ts";
+import { _getEdges } from "./gravity.ts";
 import { _withDoubleArray } from "./internal/native/array.ts";
 
 export interface IMagickImage extends INativeInstance {
@@ -52,6 +54,7 @@ export interface IMagickImage extends INativeInstance {
   filterType: FilterType;
   format: string;
   hasAlpha: boolean;
+  interpolate: PixelInterpolateMethod;
   readonly height: number;
   orientation: OrientationType;
   quality: number;
@@ -247,6 +250,8 @@ export interface IMagickImage extends INativeInstance {
     whitePoint: Percentage,
     gamma: number,
   ): void;
+  liquidRescale(geometry: MagickGeometry): void;
+  liquidRescale(width: number, height: number): void;
   modulate(brightness: Percentage): void;
   modulate(brightness: Percentage, saturation: Percentage): void;
   modulate(
@@ -294,6 +299,13 @@ export interface IMagickImage extends INativeInstance {
   setArtifact(name: string, value: boolean): void;
   setWriteMask(image: IMagickImage): void;
   toString(): string;
+  trim(): void;
+  trim(...edges: Gravity[]): void;
+  trim(percentage: Percentage): void;
+  vignette(): void;
+  vignette(radius: number, sigma: number, x: number, y: number): void;
+  wave(): void;
+  wave(method: PixelInterpolateMethod, amplitude: number, length: number): void;
   write(func: (data: Uint8Array) => void, format?: MagickFormat): void;
   write(
     func: (data: Uint8Array) => Promise<void>,
@@ -408,6 +420,13 @@ export class MagickImage extends NativeInstance implements IMagickImage {
         exception,
       );
     });
+  }
+
+  get interpolate(): PixelInterpolateMethod {
+    return ImageMagick._api._MagickImage_Interpolate_Get(this._instance);
+  }
+  set interpolate(value: PixelInterpolateMethod) {
+    ImageMagick._api._MagickImage_Interpolate_Set(this._instance, value);
   }
 
   get height(): number {
@@ -1135,6 +1154,29 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  liquidRescale(geometry: MagickGeometry): void;
+  liquidRescale(width: number, height: number): void;
+  liquidRescale(
+    widthOrGeometry: number | MagickGeometry,
+    height?: number,
+  ): void {
+    const geometry = typeof widthOrGeometry === "number"
+      ? new MagickGeometry(widthOrGeometry, height as number)
+      : widthOrGeometry;
+    Exception.use((exception) => {
+      _withString(geometry.toString(), (geometryPtr) => {
+        const instance = ImageMagick._api._MagickImage_LiquidRescale(
+          this._instance,
+          geometryPtr,
+          geometry.x,
+          geometry.y,
+          exception.ptr,
+        );
+        this._setInstance(instance, exception);
+      });
+    });
+  }
+
   modulate(brightness: Percentage): void;
   modulate(brightness: Percentage, saturation: Percentage): void;
   modulate(
@@ -1424,6 +1466,89 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     `${this.format} ${this.width}x${this.height} ${this.depth}-bit ${
       ColorSpace[this.colorSpace]
     }`;
+
+  trim(): void;
+  trim(...edges: Gravity[]): void;
+  trim(percentage: Percentage): void;
+  trim(...args: Gravity[] | Percentage[]): void {
+    if (args.length > 0) {
+      if (args.length == 1 && args[0] instanceof Percentage) {
+        const percentage = args[0];
+        this.setArtifact(
+          "trim:percent-background",
+          percentage.toDouble().toString(),
+        );
+      } else {
+        const edges = args as Gravity[];
+        const value = [...new Set(_getEdges(edges))].join(",");
+        this.setArtifact("trim:edges", value);
+      }
+    }
+
+    Exception.use((exception) => {
+      const instance = ImageMagick._api._MagickImage_Trim(
+        this._instance,
+        exception.ptr,
+      );
+      this._setInstance(instance, exception);
+
+      this.removeArtifact("trim:edges");
+      this.removeArtifact("trim:percent-background");
+    });
+  }
+
+  wave(): void;
+  wave(method: PixelInterpolateMethod, amplitude: number, length: number): void;
+  wave(
+    methodOrUndefined?: PixelInterpolateMethod,
+    amplitudeOrUndefined?: number,
+    lengthOrUndefined?: number,
+  ): void {
+    const method = methodOrUndefined == undefined
+      ? this.interpolate
+      : methodOrUndefined;
+    const amplitude = amplitudeOrUndefined == undefined
+      ? 25
+      : amplitudeOrUndefined;
+    const length = lengthOrUndefined == undefined ? 150 : lengthOrUndefined;
+
+    Exception.use((exception) => {
+      const instance = ImageMagick._api._MagickImage_Wave(
+        this._instance,
+        method,
+        amplitude,
+        length,
+        exception.ptr,
+      );
+      this._setInstance(instance, exception);
+    });
+  }
+
+  vignette(): void;
+  vignette(radius: number, sigma: number, x: number, y: number): void;
+  vignette(
+    radiusOrUndefined?: number,
+    sigmaOrUndefined?: number,
+    xOrUndefined?: number,
+    yOrUndefined?: number,
+  ): void {
+    const radius = radiusOrUndefined === undefined ? 0 : radiusOrUndefined;
+    const sigma = sigmaOrUndefined === undefined ? 1.0 : sigmaOrUndefined;
+    const x = xOrUndefined === undefined ? 0 : xOrUndefined;
+    const y = yOrUndefined === undefined ? 0 : yOrUndefined;
+
+    Exception.use((exception) => {
+      const instance = ImageMagick._api._MagickImage_Vignette(
+        this._instance,
+        radius,
+        sigma,
+        x,
+        y,
+        exception.ptr,
+      );
+      this._setInstance(instance, exception);
+    });
+  }
 
   write(func: (data: Uint8Array) => void, format?: MagickFormat): void;
   write(

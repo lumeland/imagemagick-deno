@@ -31,3 +31,8 @@ ImageMagick.read(data, (img: IMagickImage) => {
   );
 });
 ```
+
+## Build
+
+- Transform the code: `sh run.sh`.
+- Test it: `deno run -A --no-check test/test.ts`.
