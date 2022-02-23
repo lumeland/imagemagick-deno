@@ -1,6 +1,7 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
 import { AlphaOption } from "./alpha-option.ts";
+import { AutoThresholdMethod } from "./auto-threshold-method.ts";
 import { Channels } from "./channels.ts";
 import { ColorSpace } from "./color-space.ts";
 import { CompositeOperator } from "./composite-operator.ts";
@@ -57,6 +58,7 @@ export interface IMagickImage extends INativeInstance {
   interpolate: PixelInterpolateMethod;
   readonly height: number;
   orientation: OrientationType;
+  page: MagickGeometry;
   quality: number;
   readonly signature: string | null;
   virtualPixelMethod: VirtualPixelMethod;
@@ -64,6 +66,7 @@ export interface IMagickImage extends INativeInstance {
 
   alpha(value: AlphaOption): void;
   autoOrient(): void;
+  autoThreshold(method: AutoThresholdMethod): void;
   blur(): void;
   blur(channels: Channels): void;
   blur(radius: number, sigma: number): void;
@@ -192,6 +195,10 @@ export interface IMagickImage extends INativeInstance {
     args: string,
     channels: Channels,
   ): void;
+  crop(geometry: MagickGeometry): void;
+  crop(geometry: MagickGeometry, gravity: Gravity): void;
+  crop(width: number, height: number): void;
+  crop(width: number, height: number, gravity: Gravity): void;
   deskew(threshold: Percentage): number;
   distort(method: DistortMethod, params: number[]): void;
   distort(
@@ -237,6 +244,7 @@ export interface IMagickImage extends INativeInstance {
   getPixels<TReturnType>(
     func: (pixels: IPixelCollection) => TReturnType,
   ): TReturnType;
+  histogram(): Map<string, number>;
   level(blackPoint: Percentage, whitePoint: Percentage): void;
   level(blackPoint: Percentage, whitePoint: Percentage, gamma: number): void;
   level(
@@ -267,6 +275,7 @@ export interface IMagickImage extends INativeInstance {
   readFromCanvas(canvas: HTMLCanvasElement): void;
   removeArtifact(name: string): void;
   removeWriteMask(): void;
+  repage(): void;
   resize(geometry: MagickGeometry): void;
   resize(width: number, height: number): void;
   rotate(degrees: number): void;
@@ -440,6 +449,16 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     ImageMagick._api._MagickImage_Orientation_Set(this._instance, value);
   }
 
+  get page(): MagickGeometry {
+    const rectangle = ImageMagick._api._MagickImage_Page_Get(this._instance);
+    return MagickGeometry.fromRectangle(rectangle);
+  }
+  set page(value: MagickGeometry) {
+    value.toRectangle((rectangle) => {
+      ImageMagick._api._MagickImage_Page_Set(this._instance, rectangle);
+    });
+  }
+
   get quality(): number {
     return ImageMagick._api._MagickImage_Quality_Get(this._instance);
   }
@@ -494,6 +513,16 @@ export class MagickImage extends NativeInstance implements IMagickImage {
         exception.ptr,
       );
       this._setInstance(instance, exception);
+    });
+  }
+
+  autoThreshold(method: AutoThresholdMethod): void {
+    Exception.use((exception) => {
+      ImageMagick._api._MagickImage_AutoThreshold(
+        this._instance,
+        method,
+        exception.ptr,
+      );
     });
   }
 
@@ -869,6 +898,41 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     }
   }
 
+  crop(geometry: MagickGeometry): void;
+  crop(geometry: MagickGeometry, gravity: Gravity): void;
+  crop(width: number, height: number): void;
+  crop(width: number, height: number, gravity: Gravity): void;
+  crop(
+    geometryOrWidth: MagickGeometry | number,
+    heightOrGravity?: number | Gravity,
+    gravity?: Gravity,
+  ): void {
+    let geometry: MagickGeometry;
+    let cropGravity: Gravity;
+
+    if (geometryOrWidth instanceof MagickGeometry) {
+      geometry = geometryOrWidth;
+      cropGravity = heightOrGravity !== undefined
+        ? heightOrGravity
+        : Gravity.Undefined;
+    } else if (heightOrGravity !== undefined) {
+      geometry = new MagickGeometry(geometryOrWidth, heightOrGravity);
+      cropGravity = gravity !== undefined ? gravity : Gravity.Undefined;
+    }
+
+    Exception.use((exception) => {
+      _withString(geometry.toString(), (geometryPtr) => {
+        const instance = ImageMagick._api._MagickImage_Crop(
+          this._instance,
+          geometryPtr,
+          cropGravity,
+          exception.ptr,
+        );
+        this._setInstance(instance, exception);
+      });
+    });
+  }
+
   static create(): IMagickImage {
     return new MagickImage(MagickImage.createInstance(), new MagickSettings());
   }
@@ -1105,6 +1169,34 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  histogram(): Map<string, number> {
+    const result = new Map<string, number>();
+
+    Exception.usePointer((exception) => {
+      Pointer.use((lengthPointer) => {
+        const histogram = ImageMagick._api._MagickImage_Histogram(
+          this._instance,
+          lengthPointer.ptr,
+          exception,
+        );
+        if (histogram !== 0) {
+          const length = lengthPointer.value;
+          for (let i = 0; i < length; i++) {
+            const colorPtr = ImageMagick._api
+              ._MagickColorCollection_GetInstance(histogram, i);
+            const color = MagickColor._create(colorPtr);
+            const count = ImageMagick._api._MagickColor_Count_Get(colorPtr);
+            result.set(color.toString(), count);
+          }
+
+          ImageMagick._api._MagickColorCollection_DisposeList(histogram);
+        }
+      });
+    });
+
+    return result;
+  }
+
   level(blackPoint: Percentage, whitePoint: Percentage): void;
   level(blackPoint: Percentage, whitePoint: Percentage, gamma: number): void;
   level(
@@ -1289,6 +1381,10 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     Exception.usePointer((exception) => {
       ImageMagick._api._MagickImage_SetWriteMask(this._instance, 0, exception);
     });
+  }
+
+  repage(): void {
+    this.page = new MagickGeometry(0, 0, 0, 0);
   }
 
   resize(geometry: MagickGeometry): void;
