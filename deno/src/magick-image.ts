@@ -7,12 +7,14 @@ import { ColorSpace } from "./color-space.ts";
 import { CompositeOperator } from "./composite-operator.ts";
 import { DistortMethod } from "./distort-method.ts";
 import { DistortSettings } from "./settings/distort-settings.ts";
+import { DrawingWand } from "./drawables/drawing-wand.ts";
 import { ErrorMetric } from "./error-metric.ts";
 import { EvaluateOperator } from "./evaluate-operator.ts";
 import { Exception } from "./internal/exception/exception.ts";
 import { FilterType } from "./filter-type.ts";
 import { Gravity } from "./gravity.ts";
 import { ImageMagick } from "./image-magick.ts";
+import { IDrawable } from "./drawables/drawable.ts";
 import { IImageProfile, ImageProfile } from "./profiles/image-profile.ts";
 import {
   IMagickImageCollection,
@@ -47,13 +49,15 @@ export interface IMagickImage extends INativeInstance {
   /** @internal */
   _instance: number;
 
-  readonly artifactNames: string[];
+  readonly artifactNames: ReadonlyArray<string>;
   backgroundColor: MagickColor;
+  borderColor: MagickColor;
   readonly channelCount: number;
+  colorFuzz: Percentage;
   colorSpace: ColorSpace;
   depth: number;
   filterType: FilterType;
-  format: string;
+  format: MagickFormat;
   hasAlpha: boolean;
   interpolate: PixelInterpolateMethod;
   readonly height: number;
@@ -71,6 +75,8 @@ export interface IMagickImage extends INativeInstance {
   blur(channels: Channels): void;
   blur(radius: number, sigma: number): void;
   blur(radius: number, sigma: number, channels: Channels): void;
+  border(size: number): void;
+  border(width: number, height: number): void;
   channelOffset(pixelChannel: PixelChannel): number;
   charcoal(): void;
   charcoal(radius: number, sigma: number): void;
@@ -206,6 +212,8 @@ export interface IMagickImage extends INativeInstance {
     settings: DistortSettings,
     params: number[],
   ): void;
+  draw(drawables: IDrawable[]): void;
+  draw(...drawables: IDrawable[]): void;
   evaluate(channels: Channels, operator: EvaluateOperator, value: number): void;
   evaluate(
     channels: Channels,
@@ -245,6 +253,17 @@ export interface IMagickImage extends INativeInstance {
     func: (pixels: IPixelCollection) => TReturnType,
   ): TReturnType;
   histogram(): Map<string, number>;
+  inverseSigmoidalContrast(contrast: number): void;
+  inverseSigmoidalContrast(
+    contrast: number,
+    midpointPercentage: Percentage,
+  ): void;
+  inverseSigmoidalContrast(contrast: number, midpoint: number): void;
+  inverseSigmoidalContrast(
+    contrast: number,
+    midpoint: number,
+    channels: Channels,
+  ): void;
   level(blackPoint: Percentage, whitePoint: Percentage): void;
   level(blackPoint: Percentage, whitePoint: Percentage, gamma: number): void;
   level(
@@ -283,14 +302,12 @@ export interface IMagickImage extends INativeInstance {
   sharpen(radius: number, sigma: number): void;
   sharpen(radius: number, sigma: number, channels: Channels): void;
   sigmoidalContrast(contrast: number): void;
-  sigmoidalContrast(sharpen: boolean, contrast: number): void;
-  sigmoidalContrast(contrast: number, midpoint: number): void;
-  sigmoidalContrast(sharpen: boolean, contrast: number, midpoint: number): void;
   sigmoidalContrast(contrast: number, midpointPercentage: Percentage): void;
+  sigmoidalContrast(contrast: number, midpoint: number): void;
   sigmoidalContrast(
-    sharpen: boolean,
     contrast: number,
-    midpointPercentage: Percentage,
+    midpoint: number,
+    channels: Channels,
   ): void;
   separate(func: (images: IMagickImageCollection) => void): void;
   separate(
@@ -331,7 +348,7 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     this._settings = settings;
   }
 
-  get artifactNames(): string[] {
+  get artifactNames(): ReadonlyArray<string> {
     const artifactNames: string[] = [];
     ImageMagick._api._MagickImage_ResetArtifactIterator(this._instance);
     let name = ImageMagick._api._MagickImage_GetNextArtifactName(
@@ -360,8 +377,32 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  get borderColor(): MagickColor {
+    const colorPtr = ImageMagick._api._MagickImage_BorderColor_Get(
+      this._instance,
+    );
+    return MagickColor._create(colorPtr);
+  }
+  set borderColor(value: MagickColor) {
+    value._use((valuePtr) => {
+      ImageMagick._api._MagickImage_BorderColor_Set(this._instance, valuePtr);
+    });
+  }
+
   get channelCount(): number {
     return ImageMagick._api._MagickImage_ChannelCount_Get(this._instance);
+  }
+
+  get colorFuzz(): Percentage {
+    return Percentage.fromQuantum(
+      ImageMagick._api._MagickImage_ColorFuzz_Get(this._instance),
+    );
+  }
+  set colorFuzz(value: Percentage) {
+    ImageMagick._api._MagickImage_ColorFuzz_Set(
+      this._instance,
+      value.toQuantum(),
+    );
   }
 
   get colorSpace(): ColorSpace {
@@ -396,15 +437,15 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     ImageMagick._api._MagickImage_FilterType_Set(this._instance, value);
   }
 
-  get format(): string {
+  get format(): MagickFormat {
     return _createString(
       ImageMagick._api._MagickImage_Format_Get(this._instance),
       "",
-    );
+    ) as MagickFormat;
   }
-  set format(value: string) {
+  set format(value: MagickFormat) {
     _withString(
-      value,
+      value.toString(),
       (instance) =>
         ImageMagick._api._MagickImage_Format_Set(this._instance, instance),
     );
@@ -554,6 +595,26 @@ export class MagickImage extends NativeInstance implements IMagickImage {
         exception.ptr,
       );
       this._setInstance(instance, exception);
+    });
+  }
+
+  border(size: number): void;
+  border(width: number, height: number): void;
+  border(sizeOrWidth: number, height?: number): void {
+    const widthValue = sizeOrWidth;
+    const heightValue = this.valueOrDefault(height, sizeOrWidth);
+
+    const geometry = new MagickGeometry(0, 0, widthValue, heightValue);
+
+    Exception.use((exception) => {
+      geometry.toRectangle((rectangle) => {
+        const instance = ImageMagick._api._MagickImage_Border(
+          this._instance,
+          rectangle,
+          exception.ptr,
+        );
+        this._setInstance(instance, exception);
+      });
     });
   }
 
@@ -996,6 +1057,17 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     }
   }
 
+  draw(drawables: IDrawable[]): void;
+  draw(...drawables: IDrawable[]): void;
+  draw(...drawables: IDrawable[][] | IDrawable[]): void {
+    const wand = DrawingWand._create(this, this._settings);
+    try {
+      wand.draw(drawables.flat());
+    } finally {
+      wand.dispose();
+    }
+  }
+
   evaluate(channels: Channels, operator: EvaluateOperator, value: number): void;
   evaluate(
     channels: Channels,
@@ -1195,6 +1267,30 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
 
     return result;
+  }
+
+  inverseSigmoidalContrast(contrast: number): void;
+  inverseSigmoidalContrast(
+    contrast: number,
+    midpointPercentage: Percentage,
+  ): void;
+  inverseSigmoidalContrast(contrast: number, midpoint: number): void;
+  inverseSigmoidalContrast(
+    contrast: number,
+    midpoint: number,
+    channels: Channels,
+  ): void;
+  inverseSigmoidalContrast(
+    contrast: number,
+    midpointOrPercentage?: number | Percentage,
+    channels?: Channels,
+  ): void {
+    this.privateSigmoidalContrast(
+      false,
+      contrast,
+      midpointOrPercentage,
+      channels,
+    );
   }
 
   level(blackPoint: Percentage, whitePoint: Percentage): void;
@@ -1439,63 +1535,24 @@ export class MagickImage extends NativeInstance implements IMagickImage {
   }
 
   sigmoidalContrast(contrast: number): void;
-  sigmoidalContrast(sharpen: boolean, contrast: number): void;
-  sigmoidalContrast(contrast: number, midpoint: number): void;
-  sigmoidalContrast(sharpen: boolean, contrast: number, midpoint: number): void;
   sigmoidalContrast(contrast: number, midpointPercentage: Percentage): void;
+  sigmoidalContrast(contrast: number, midpoint: number): void;
   sigmoidalContrast(
-    sharpen: boolean,
     contrast: number,
-    midpointPercentage: Percentage,
+    midpoint: number,
+    channels: Channels,
   ): void;
   sigmoidalContrast(
-    sharpenOrConstract: boolean | number,
-    contrastOrMidpointOrPercentage?: number | Percentage,
+    contrast: number,
     midpointOrPercentage?: number | Percentage,
+    channels?: Channels,
   ): void {
-    let sharpen: boolean;
-    let contrast: number;
-    let midpoint: number;
-    if (midpointOrPercentage !== undefined) {
-      if (typeof sharpenOrConstract !== "number") {
-        sharpen = sharpenOrConstract;
-      }
-      if (typeof contrastOrMidpointOrPercentage === "number") {
-        contrast = contrastOrMidpointOrPercentage;
-      }
-      if (typeof midpointOrPercentage === "number") {
-        midpoint = midpointOrPercentage;
-      } else {
-        midpoint = midpointOrPercentage.multiply(Quantum.max);
-      }
-    } else {
-      if (typeof sharpenOrConstract === "number") {
-        sharpen = true;
-        contrast = sharpenOrConstract;
-        if (typeof contrastOrMidpointOrPercentage === "number") {
-          midpoint = contrastOrMidpointOrPercentage;
-        } else if (contrastOrMidpointOrPercentage !== undefined) {
-          midpoint = contrastOrMidpointOrPercentage.multiply(Quantum.max);
-        } else {
-          midpoint = Quantum.max * 0.5;
-        }
-      } else {
-        sharpen = sharpenOrConstract;
-        if (typeof contrastOrMidpointOrPercentage === "number") {
-          contrast = contrastOrMidpointOrPercentage;
-        }
-        midpoint = Quantum.max * 0.5;
-      }
-    }
-    Exception.usePointer((exception) => {
-      ImageMagick._api._MagickImage_SigmoidalContrast(
-        this._instance,
-        this.fromBool(sharpen),
-        contrast,
-        midpoint,
-        exception,
-      );
-    });
+    this.privateSigmoidalContrast(
+      true,
+      contrast,
+      midpointOrPercentage,
+      channels,
+    );
   }
 
   separate(func: (images: IMagickImageCollection) => void): void;
@@ -1672,10 +1729,12 @@ export class MagickImage extends NativeInstance implements IMagickImage {
               pointer.ptr,
               exception.ptr,
             );
-            bytes = ImageMagick._api.HEAPU8.subarray(
-              data,
-              data + pointer.value,
-            );
+            if (data !== 0) {
+              bytes = ImageMagick._api.HEAPU8.subarray(
+                data,
+                data + pointer.value,
+              );
+            }
           } catch {
             if (data !== 0) {
               ImageMagick._api._MagickMemory_Relinquish(data);
@@ -1723,6 +1782,11 @@ export class MagickImage extends NativeInstance implements IMagickImage {
   }
 
   /** @internal */
+  _getSettings(): MagickSettings {
+    return this._settings;
+  }
+
+  /** @internal */
   protected _instanceNotInitialized(): void {
     throw new MagickError("no image has been read");
   }
@@ -1743,6 +1807,38 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     } finally {
       image.dispose();
     }
+  }
+
+  private privateSigmoidalContrast(
+    sharpen: boolean,
+    contrast: number,
+    midpointOrPercentage?: number | Percentage,
+    channels?: Channels,
+  ): void {
+    let midpoint: number;
+    if (midpointOrPercentage !== undefined) {
+      if (typeof midpointOrPercentage === "number") {
+        midpoint = midpointOrPercentage;
+      } else {
+        midpoint = midpointOrPercentage.multiply(Quantum.max);
+      }
+    } else {
+      midpoint = Quantum.max * 0.5;
+    }
+    let usedChannels = Channels.Default;
+    if (channels !== undefined) {
+      usedChannels = channels;
+    }
+    Exception.usePointer((exception) => {
+      ImageMagick._api._MagickImage_SigmoidalContrast(
+        this._instance,
+        this.fromBool(sharpen),
+        contrast,
+        midpoint,
+        usedChannels,
+        exception,
+      );
+    });
   }
 
   private static createInstance(): number {

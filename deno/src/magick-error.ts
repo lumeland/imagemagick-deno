@@ -4,6 +4,7 @@ import { MagickErrorSeverity } from "./magick-error-severity.ts";
 
 export class MagickError extends Error {
   private readonly _severity: MagickErrorSeverity;
+  private _relatedErrors: MagickError[] = [];
 
   constructor(
     message: string,
@@ -14,7 +15,15 @@ export class MagickError extends Error {
     this._severity = severity;
   }
 
+  get relatedErrors(): ReadonlyArray<MagickError> {
+    return this._relatedErrors;
+  }
   get severity(): MagickErrorSeverity {
     return this._severity;
+  }
+
+  /** @internal */
+  public _setRelatedErrors(relatedErrors: MagickError[]) {
+    this._relatedErrors = relatedErrors;
   }
 }

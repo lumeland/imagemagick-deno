@@ -23,7 +23,7 @@ export class Magick {
     );
   }
 
-  static get supportedFormats(): MagickFormatInfo[] {
+  static get supportedFormats(): ReadonlyArray<MagickFormatInfo> {
     return MagickFormatInfo.all;
   }
 
@@ -34,11 +34,22 @@ export class Magick {
       fileSystem.mkdir("/fonts");
     }
 
-    const stream = fileSystem.open(`/fonts/${name}`, "w+");
+    const stream = fileSystem.open(`/fonts/${name}`, "w");
     fileSystem.write(stream, data, 0, data.length);
     fileSystem.close(stream);
   }
 
   static setRandomSeed = (seed: number): void =>
     ImageMagick._api._Magick_SetRandomSeed(seed);
+
+  /** @internal */
+  static _getFontFileName(name: string): string {
+    const fileName = `/fonts/${name}`;
+    const stats = ImageMagick._api.FS.analyzePath(fileName);
+    if (!stats.exists) {
+      throw `Unable to find a font with the name '${name}', add it with Magick.addFont.`;
+    }
+
+    return fileName;
+  }
 }

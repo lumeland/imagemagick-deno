@@ -40,7 +40,7 @@ export class MagickFormatInfo {
     return this._isWritable;
   }
 
-  static get all(): MagickFormatInfo[] {
+  static get all(): ReadonlyArray<MagickFormatInfo> {
     return Exception.usePointer((exception) => {
       return Pointer.use((pointer) => {
         const list = ImageMagick._api._MagickFormatInfo_CreateList(
@@ -96,8 +96,6 @@ export class MagickFormatInfo {
     if (values.includes(formatName)) {
       return formatName as MagickFormat;
     }
-
-    // console.log(formatName);
 
     return MagickFormat.Unknown;
   }
