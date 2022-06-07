@@ -201,6 +201,14 @@ export interface IMagickImage extends INativeInstance {
     args: string,
     channels: Channels,
   ): void;
+  contrast(): void;
+  contrastStretch(blackPoint: Percentage): void;
+  contrastStretch(blackPoint: Percentage, whitePoint: Percentage): void;
+  contrastStretch(
+    blackPoint: Percentage,
+    whitePoint?: Percentage,
+    channels?: Channels,
+  ): void;
   crop(geometry: MagickGeometry): void;
   crop(geometry: MagickGeometry, gravity: Gravity): void;
   crop(width: number, height: number): void;
@@ -253,6 +261,7 @@ export interface IMagickImage extends INativeInstance {
     func: (pixels: IPixelCollection) => TReturnType,
   ): TReturnType;
   histogram(): Map<string, number>;
+  inverseContrast(): void;
   inverseSigmoidalContrast(contrast: number): void;
   inverseSigmoidalContrast(
     contrast: number,
@@ -286,6 +295,11 @@ export interface IMagickImage extends INativeInstance {
     saturation: Percentage,
     hue: Percentage,
   ): void;
+  negate(): void;
+  negate(channels: Channels): void;
+  negateGrayScale(): void;
+  negateGrayScale(channels: Channels): void;
+  normalize(): void;
   oilPaint(): void;
   oilPaint(radius: number): void;
   read(color: MagickColor, width: number, height: number): void;
@@ -301,6 +315,7 @@ export interface IMagickImage extends INativeInstance {
   sharpen(): void;
   sharpen(radius: number, sigma: number): void;
   sharpen(radius: number, sigma: number, channels: Channels): void;
+  shave(leftRight: number, topBottom: number): void;
   sigmoidalContrast(contrast: number): void;
   sigmoidalContrast(contrast: number, midpointPercentage: Percentage): void;
   sigmoidalContrast(contrast: number, midpoint: number): void;
@@ -959,6 +974,34 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     }
   }
 
+  contrast(): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._MagickImage_Contrast(this._instance, 1, exception);
+    });
+  }
+
+  contrastStretch(blackPoint: Percentage): void;
+  contrastStretch(blackPoint: Percentage, whitePoint: Percentage): void;
+  contrastStretch(
+    blackPoint: Percentage,
+    whitePoint?: Percentage,
+    channels?: Channels,
+  ): void {
+    const pixels = this.width * this.height;
+    const lower = blackPoint.multiply(pixels);
+    const upper = pixels - (whitePoint ?? blackPoint).multiply(pixels);
+
+    Exception.usePointer((exception) => {
+      ImageMagick._api._MagickImage_ContrastStretch(
+        this._instance,
+        lower,
+        upper,
+        channels ?? Channels.Default,
+        exception,
+      );
+    });
+  }
+
   crop(geometry: MagickGeometry): void;
   crop(geometry: MagickGeometry, gravity: Gravity): void;
   crop(width: number, height: number): void;
@@ -1269,6 +1312,12 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     return result;
   }
 
+  inverseContrast(): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._MagickImage_Contrast(this._instance, 0, exception);
+    });
+  }
+
   inverseSigmoidalContrast(contrast: number): void;
   inverseSigmoidalContrast(
     contrast: number,
@@ -1362,6 +1411,36 @@ export class MagickImage extends NativeInstance implements IMagickImage {
         );
         this._setInstance(instance, exception);
       });
+    });
+  }
+
+  negate(): void;
+  negate(channels?: Channels): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._MagickImage_Negate(
+        this._instance,
+        0,
+        channels ?? Channels.Composite,
+        exception,
+      );
+    });
+  }
+
+  negateGrayScale(): void;
+  negateGrayScale(channels?: Channels): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._MagickImage_Negate(
+        this._instance,
+        1,
+        channels ?? Channels.Composite,
+        exception,
+      );
+    });
+  }
+
+  normalize(): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._MagickImage_Normalize(this._instance, exception);
     });
   }
 
@@ -1528,6 +1607,18 @@ export class MagickImage extends NativeInstance implements IMagickImage {
         radiusValue,
         sigmaValue,
         channelsValue,
+        exception.ptr,
+      );
+      this._setInstance(instance, exception);
+    });
+  }
+
+  shave(leftRight: number, topBottom: number) {
+    Exception.use((exception) => {
+      const instance = ImageMagick._api._MagickImage_Shave(
+        this._instance,
+        leftRight,
+        topBottom,
         exception.ptr,
       );
       this._setInstance(instance, exception);
@@ -1712,6 +1803,7 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     func: (data: Uint8Array) => void | Promise<void>,
     format?: MagickFormat,
   ): void | Promise<void> {
+    let data = 0;
     let bytes = new Uint8Array();
 
     Exception.use((exception) => {
@@ -1721,7 +1813,6 @@ export class MagickImage extends NativeInstance implements IMagickImage {
         }
 
         this._settings._use((settings) => {
-          let data = 0;
           try {
             data = ImageMagick._api._MagickImage_WriteBlob(
               this._instance,
@@ -1744,7 +1835,11 @@ export class MagickImage extends NativeInstance implements IMagickImage {
       });
     });
 
-    return func(bytes);
+    const result = func(bytes);
+    if (data !== 0) {
+      ImageMagick._api._MagickMemory_Relinquish(data);
+    }
+    return result;
   }
 
   writeToCanvas(canvas: HTMLCanvasElement): void {

@@ -5,12 +5,14 @@ import { Exception } from "./internal/exception/exception.ts";
 import { Pointer } from "./internal/pointer/pointer.ts";
 import { MagickFormat } from "./magick-format.ts";
 import { _createString } from "./internal/native/string.ts";
+import { MagickError } from "./magick-error.ts";
 
 export class MagickFormatInfo {
   private readonly _format: MagickFormat;
   private readonly _description: string;
   private readonly _isReadable: boolean;
   private readonly _isWritable: boolean;
+  private static _all: ReadonlyArray<MagickFormatInfo>;
 
   private constructor(
     format: MagickFormat,
@@ -41,6 +43,23 @@ export class MagickFormatInfo {
   }
 
   static get all(): ReadonlyArray<MagickFormatInfo> {
+    if (MagickFormatInfo._all === undefined) {
+      MagickFormatInfo._all = MagickFormatInfo.loadFormats();
+    }
+    return MagickFormatInfo._all;
+  }
+
+  static create(format: MagickFormat): MagickFormatInfo {
+    for (const formatInfo of MagickFormatInfo.all) {
+      if (formatInfo.format === format) {
+        return formatInfo;
+      }
+    }
+
+    throw new MagickError(`unable to get format info for ${format}`);
+  }
+
+  private static loadFormats() {
     return Exception.usePointer((exception) => {
       return Pointer.use((pointer) => {
         const list = ImageMagick._api._MagickFormatInfo_CreateList(
