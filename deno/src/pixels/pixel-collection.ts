@@ -192,7 +192,7 @@ export class PixelCollection extends NativeInstance
       const count = width * height * channelCount;
       return ImageMagick._api.HEAPU8.slice(instance, instance + count);
     } finally {
-      ImageMagick._api._MagickMemory_Relinquish(instance);
+      instance = ImageMagick._api._MagickMemory_Relinquish(instance);
     }
   }
 
@@ -206,7 +206,7 @@ export class PixelCollection extends NativeInstance
   ): TReturnType | null {
     return _withString(mapping, (mappingPtr) => {
       return Exception.use((exception) => {
-        const instance = ImageMagick._api._PixelCollection_ToByteArray(
+        let instance = ImageMagick._api._PixelCollection_ToByteArray(
           this._instance,
           x,
           y,
@@ -218,10 +218,10 @@ export class PixelCollection extends NativeInstance
 
         return exception.check(() => {
           const result = func(instance);
-          ImageMagick._api._MagickMemory_Relinquish(instance);
+          instance = ImageMagick._api._MagickMemory_Relinquish(instance);
           return result;
         }, () => {
-          ImageMagick._api._MagickMemory_Relinquish(instance);
+          instance = ImageMagick._api._MagickMemory_Relinquish(instance);
           return null;
         });
       });

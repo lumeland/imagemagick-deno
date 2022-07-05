@@ -126,7 +126,7 @@ export class MagickImageCollection extends Array<MagickImage>
             }
           } catch {
             if (data !== 0) {
-              ImageMagick._api._MagickMemory_Relinquish(data);
+              data = ImageMagick._api._MagickMemory_Relinquish(data);
             }
           } finally {
             this.detachImages();
@@ -135,11 +135,21 @@ export class MagickImageCollection extends Array<MagickImage>
       });
     });
 
-    const result = func(bytes);
-    if (data !== 0) {
-      ImageMagick._api._MagickMemory_Relinquish(data);
+    try {
+      let result = func(bytes);
+      if (!!result && typeof result.then === "function") {
+        result = result.finally(() => {
+          if (data !== 0) {
+            data = ImageMagick._api._MagickMemory_Relinquish(data);
+          }
+        });
+      }
+      return result;
+    } finally {
+      if (data !== 0) {
+        data = ImageMagick._api._MagickMemory_Relinquish(data);
+      }
     }
-    return result;
   }
 
   static create(): IMagickImageCollection {
