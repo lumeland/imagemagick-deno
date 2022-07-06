@@ -6,7 +6,7 @@ rm magick-wasm.tgz
 rm test/unsplash-blur.jpg
 
 # Clone the repo
-git clone --depth 1 --branch 0.0.13 https://github.com/dlemstra/magick-wasm.git
+git clone --depth 1 --branch 0.0.14 https://github.com/dlemstra/magick-wasm.git
 
 # Download the wasm file
 deno run --allow-net --allow-write download.js

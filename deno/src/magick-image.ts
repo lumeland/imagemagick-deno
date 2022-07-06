@@ -55,6 +55,7 @@ export interface IMagickImage extends INativeInstance {
   readonly channelCount: number;
   colorFuzz: Percentage;
   colorSpace: ColorSpace;
+  comment: string | null;
   depth: number;
   filterType: FilterType;
   format: MagickFormat;
@@ -252,6 +253,7 @@ export interface IMagickImage extends INativeInstance {
   ): void;
   extent(geometry: MagickGeometry, backgroundColor: MagickColor): void;
   getArtifact(name: string): string | null;
+  getAttribute(name: string): string | null;
   getProfile(name: string): IImageProfile | null;
   getWriteMask(func: (mask: IMagickImage | null) => void): void;
   getWriteMask(
@@ -302,11 +304,14 @@ export interface IMagickImage extends INativeInstance {
   normalize(): void;
   oilPaint(): void;
   oilPaint(radius: number): void;
+  ping(fileName: string, settings?: MagickReadSettings): void;
+  ping(array: Uint8Array, settings?: MagickReadSettings): void;
   read(color: MagickColor, width: number, height: number): void;
   read(fileName: string, settings?: MagickReadSettings): void;
   read(array: Uint8Array, settings?: MagickReadSettings): void;
   readFromCanvas(canvas: HTMLCanvasElement): void;
   removeArtifact(name: string): void;
+  removeAttribute(name: string): void;
   removeWriteMask(): void;
   repage(): void;
   resize(geometry: MagickGeometry): void;
@@ -338,7 +343,9 @@ export interface IMagickImage extends INativeInstance {
   ): Promise<void>;
   setArtifact(name: string, value: string): void;
   setArtifact(name: string, value: boolean): void;
+  setAttribute(name: string, value: string): void;
   setWriteMask(image: IMagickImage): void;
+  strip(): void;
   toString(): string;
   trim(): void;
   trim(...edges: Gravity[]): void;
@@ -436,6 +443,17 @@ export class MagickImage extends NativeInstance implements IMagickImage {
         exception,
       );
     });
+  }
+
+  get comment(): string | null {
+    return this.getAttribute("comment");
+  }
+  set comment(value: string | null) {
+    if (value === null) {
+      this.removeAttribute("comment");
+    } else {
+      this.setAttribute("comment", value);
+    }
   }
 
   get depth(): number {
@@ -1242,6 +1260,19 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  getAttribute(name: string): string | null {
+    return Exception.use((exception) => {
+      return _withString(name, (namePtr) => {
+        const value = ImageMagick._api._MagickImage_GetAttribute(
+          this._instance,
+          namePtr,
+          exception.ptr,
+        );
+        return _createString(value);
+      });
+    });
+  }
+
   getProfile(name: string): IImageProfile | null {
     return _withString(name, (namePtr) => {
       const value = ImageMagick._api._MagickImage_GetProfile(
@@ -1279,6 +1310,10 @@ export class MagickImage extends NativeInstance implements IMagickImage {
   getPixels<TReturnType>(
     func: (pixels: IPixelCollection) => TReturnType,
   ): TReturnType {
+    if (this._settings._ping) {
+      throw new MagickError("image contains no pixel data");
+    }
+
     return PixelCollection._use(this, (pixels) => {
       return func(pixels);
     });
@@ -1489,6 +1524,15 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  ping(fileName: string, settings?: MagickReadSettings): void;
+  ping(array: Uint8Array, settings?: MagickReadSettings): void;
+  ping(
+    fileNameOrArray: string | Uint8Array,
+    settings?: MagickReadSettings,
+  ): void {
+    this.readOrPing(true, fileNameOrArray, settings);
+  }
+
   read(color: MagickColor, width: number, height: number): void;
   read(fileName: string, settings?: MagickReadSettings): void;
   read(array: Uint8Array, settings?: MagickReadSettings): void;
@@ -1497,35 +1541,7 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     settingsOrWidth?: MagickReadSettings | number,
     height?: number,
   ): void {
-    Exception.use((exception) => {
-      if (fileNameOrArrayOrColor instanceof Uint8Array) {
-        const readSettings = settingsOrWidth instanceof MagickReadSettings
-          ? settingsOrWidth
-          : new MagickReadSettings(this._settings);
-        this.readFromArray(fileNameOrArrayOrColor, readSettings, exception);
-      } else {
-        const readSettings = settingsOrWidth instanceof MagickReadSettings
-          ? settingsOrWidth
-          : new MagickReadSettings(this._settings);
-        if (typeof fileNameOrArrayOrColor === "string") {
-          readSettings._fileName = fileNameOrArrayOrColor;
-        } else if (fileNameOrArrayOrColor instanceof MagickColor) {
-          readSettings._fileName = "xc:" +
-            fileNameOrArrayOrColor.toShortString();
-          readSettings.width = typeof settingsOrWidth === "number"
-            ? settingsOrWidth
-            : 0;
-          readSettings.height = typeof height === "number" ? height : 0;
-        }
-        readSettings._use((settings) => {
-          const instance = ImageMagick._api._MagickImage_ReadFile(
-            settings._instance,
-            exception.ptr,
-          );
-          this._setInstance(instance, exception);
-        });
-      }
-    });
+    this.readOrPing(false, fileNameOrArrayOrColor, settingsOrWidth, height);
   }
 
   readFromCanvas(canvas: HTMLCanvasElement): void {
@@ -1549,6 +1565,12 @@ export class MagickImage extends NativeInstance implements IMagickImage {
   removeArtifact(name: string): void {
     _withString(name, (namePtr) => {
       ImageMagick._api._MagickImage_RemoveArtifact(this._instance, namePtr);
+    });
+  }
+
+  removeAttribute(name: string): void {
+    _withString(name, (namePtr) => {
+      ImageMagick._api._MagickImage_RemoveAttribute(this._instance, namePtr);
     });
   }
 
@@ -1696,6 +1718,21 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  setAttribute(name: string, value: string): void {
+    Exception.use((exception) => {
+      _withString(name, (namePtr) => {
+        _withString(value, (valuePtr) => {
+          ImageMagick._api._MagickImage_SetAttribute(
+            this._instance,
+            namePtr,
+            valuePtr,
+            exception.ptr,
+          );
+        });
+      });
+    });
+  }
+
   setWriteMask(image: IMagickImage): void {
     Exception.usePointer((exception) => {
       ImageMagick._api._MagickImage_SetWriteMask(
@@ -1703,6 +1740,12 @@ export class MagickImage extends NativeInstance implements IMagickImage {
         image._instance,
         exception,
       );
+    });
+  }
+
+  strip(): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._MagickImage_Strip(this._instance, exception);
     });
   }
 
@@ -1954,6 +1997,47 @@ export class MagickImage extends NativeInstance implements IMagickImage {
 
   private fromBool(value: boolean): number {
     return value ? 1 : 0;
+  }
+
+  private readOrPing(
+    ping: boolean,
+    fileNameOrArrayOrColor: string | Uint8Array | MagickColor,
+    settingsOrWidth?: MagickReadSettings | number,
+    height?: number,
+  ): void {
+    Exception.use((exception) => {
+      if (fileNameOrArrayOrColor instanceof Uint8Array) {
+        const readSettings = settingsOrWidth instanceof MagickReadSettings
+          ? settingsOrWidth
+          : new MagickReadSettings(this._settings);
+        readSettings._ping = ping;
+        this._settings._ping = ping;
+        this.readFromArray(fileNameOrArrayOrColor, readSettings, exception);
+      } else {
+        const readSettings = settingsOrWidth instanceof MagickReadSettings
+          ? settingsOrWidth
+          : new MagickReadSettings(this._settings);
+        readSettings._ping = ping;
+        this._settings._ping = ping;
+        if (typeof fileNameOrArrayOrColor === "string") {
+          readSettings._fileName = fileNameOrArrayOrColor;
+        } else if (fileNameOrArrayOrColor instanceof MagickColor) {
+          readSettings._fileName = "xc:" +
+            fileNameOrArrayOrColor.toShortString();
+          readSettings.width = typeof settingsOrWidth === "number"
+            ? settingsOrWidth
+            : 0;
+          readSettings.height = typeof height === "number" ? height : 0;
+        }
+        readSettings._use((settings) => {
+          const instance = ImageMagick._api._MagickImage_ReadFile(
+            settings._instance,
+            exception.ptr,
+          );
+          this._setInstance(instance, exception);
+        });
+      }
+    });
   }
 
   private readFromArray(

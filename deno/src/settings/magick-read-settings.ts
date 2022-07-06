@@ -12,9 +12,9 @@ export class MagickReadSettings extends MagickSettings {
     Object.assign(this, partialSettings);
   }
 
-  width?: number;
-
   height?: number;
+
+  width?: number;
 
   /** @internal */
   _use<TReturnType>(
