@@ -7,13 +7,12 @@ await convert({
   output: "deno",
   transpile: false,
   modules: {
-    "src/wasm/magick.js": "src/wasm/magick.ts",
-    "src/wasm/magick_native.js": "src/wasm/magick_native.js",
+    "@dlemstra/magick-native/magick": "src/wasm/magick.ts",
   },
   copy: {
     "magick.ts": "src/wasm/magick.ts",
     "mod.ts": "mod.ts",
-    "magick-wasm/license.txt": "LICENSE",
+    "magick-wasm/LICENSE": "LICENSE",
     "README.md": "README.md",
   },
 });

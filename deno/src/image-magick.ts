@@ -1,7 +1,6 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
-import MagickNative from "./wasm/magick.ts";
-import { ImageMagickApi } from "./wasm/magick.ts";
+import MagickNative, { ImageMagickApi } from "./wasm/magick.ts";
 import { IMagickImage, MagickImage } from "./magick-image.ts";
 import {
   IMagickImageCollection,
@@ -13,49 +12,50 @@ import { MagickReadSettings } from "./settings/magick-read-settings.ts";
 import { _withNativeString } from "./internal/native/string.ts";
 
 export class ImageMagick {
-  private readonly loader: Promise<void>;
+  private readonly loader: () => Promise<void>;
   private api?: ImageMagickApi;
 
   private constructor() {
-    this.loader = new Promise((resolve) => {
-      if (this.api !== undefined) {
-        resolve();
-        return;
-      }
+    this.loader = () =>
+      new Promise((resolve) => {
+        if (this.api !== undefined) {
+          resolve();
+          return;
+        }
 
-      MagickNative().then((api) => {
-        _withNativeString(api, "MAGICK_CONFIGURE_PATH", (name) => {
-          _withNativeString(api, "/xml", (value) => {
-            api._Environment_SetEnv(name, value);
-            this.api = api;
+        MagickNative().then((api) => {
+          _withNativeString(api, "MAGICK_CONFIGURE_PATH", (name) => {
+            _withNativeString(api, "/xml", (value) => {
+              api._Environment_SetEnv(name, value);
+              this.api = api;
+            });
           });
+          resolve();
         });
-        resolve();
       });
-    });
   }
 
   static _create = (): ImageMagick => new ImageMagick();
 
   /** @internal */
   async _initialize(): Promise<void> {
-    await this.loader;
+    await this.loader();
   }
 
   /** @internal */
   static get _api(): ImageMagickApi {
-    if (instance.api === undefined) { // eslint-disable-line @typescript-eslint/no-use-before-define
+    if (!instance.api) {
       throw new MagickError(
         "`await initializeImageMagick` should be called to initialize the library",
       );
     }
 
-    return instance.api; // eslint-disable-line @typescript-eslint/no-use-before-define
+    return instance.api;
   }
 
   /** @internal */
   static set _api(value: ImageMagickApi) {
-    instance.api = value; // eslint-disable-line @typescript-eslint/no-use-before-define
+    instance.api = value;
   }
 
   static read(

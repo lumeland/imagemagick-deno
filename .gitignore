@@ -1,4 +1,7 @@
 .vscode
 magick-wasm
 package
-magick-wasm.tgz
+node_modules
+package.json
+package-lock.json
+.npmrc

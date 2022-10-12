@@ -10,20 +10,23 @@ import { MagickError } from "./magick-error.ts";
 export class MagickFormatInfo {
   private readonly _format: MagickFormat;
   private readonly _description: string;
-  private readonly _isReadable: boolean;
-  private readonly _isWritable: boolean;
+  private readonly _supportsMultipleFrames: boolean;
+  private readonly _supportsReading: boolean;
+  private readonly _supportsWriting: boolean;
   private static _all: ReadonlyArray<MagickFormatInfo>;
 
   private constructor(
     format: MagickFormat,
     description: string,
-    isReadable: boolean,
-    isWritable: boolean,
+    supportsMultipleFrames: boolean,
+    supportsReading: boolean,
+    supportsWriting: boolean,
   ) {
     this._format = format;
     this._description = description;
-    this._isReadable = isReadable;
-    this._isWritable = isWritable;
+    this._supportsMultipleFrames = supportsMultipleFrames;
+    this._supportsReading = supportsReading;
+    this._supportsWriting = supportsWriting;
   }
 
   get description(): string {
@@ -34,12 +37,16 @@ export class MagickFormatInfo {
     return this._format;
   }
 
-  get isReadable(): boolean {
-    return this._isReadable;
+  get supportsMultipleFrames(): boolean {
+    return this._supportsMultipleFrames;
   }
 
-  get isWritable(): boolean {
-    return this._isWritable;
+  get supportsReading(): boolean {
+    return this._supportsReading;
+  }
+
+  get supportsWriting(): boolean {
+    return this._supportsWriting;
   }
 
   static get all(): ReadonlyArray<MagickFormatInfo> {
@@ -85,15 +92,18 @@ export class MagickFormatInfo {
               ImageMagick._api._MagickFormatInfo_Description_Get(info),
               "",
             );
-            const isReadable =
+            const supportsMultipleFrames =
+              ImageMagick._api._MagickFormatInfo_IsMultiFrame_Get(info) == 1;
+            const supportsReading =
               ImageMagick._api._MagickFormatInfo_IsReadable_Get(info) == 1;
-            const isWritable =
+            const supportsWriting =
               ImageMagick._api._MagickFormatInfo_IsWritable_Get(info) == 1;
             result[i] = new MagickFormatInfo(
               format,
               description,
-              isReadable,
-              isWritable,
+              supportsMultipleFrames,
+              supportsReading,
+              supportsWriting,
             );
           }
           return result;
