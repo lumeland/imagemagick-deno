@@ -7,11 +7,11 @@ import { ImageMagick } from "../image-magick.ts";
 import { IMagickImage } from "../magick-image.ts";
 import { MagickColor } from "../magick-color.ts";
 import { MagickSettings } from "../settings/magick-settings.ts";
-import { NativeInstance } from "../internal/native-instance.ts";
+import { INativeInstance, NativeInstance } from "../native-instance.ts";
 import { PaintMethod } from "../paint-method.ts";
 import { _withString } from "../internal/native/string.ts";
 
-export interface IDrawingWand extends NativeInstance {
+export interface IDrawingWand extends INativeInstance {
   color(x: number, y: number, paintMethod: number): void;
   draw(drawables: IDrawable[]): void;
   fillColor(value: MagickColor): void;

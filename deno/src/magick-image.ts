@@ -20,7 +20,7 @@ import {
   IMagickImageCollection,
   MagickImageCollection,
 } from "./magick-image-collection.ts";
-import { INativeInstance, NativeInstance } from "./internal/native-instance.ts";
+import { INativeInstance, NativeInstance } from "./native-instance.ts";
 import { MagickColor } from "./magick-color.ts";
 import { MagickError } from "./magick-error.ts";
 import { MagickFormat } from "./magick-format.ts";

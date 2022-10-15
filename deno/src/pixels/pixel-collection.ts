@@ -2,13 +2,13 @@
 // Licensed under the Apache License, Version 2.0.
 import { ImageMagick } from "../image-magick.ts";
 import { Exception } from "../internal/exception/exception.ts";
-import { NativeInstance } from "../internal/native-instance.ts";
+import { INativeInstance, NativeInstance } from "../native-instance.ts";
 import { IMagickImage } from "../magick-image.ts";
 import { quantumArray } from "../wasm/magick.ts";
 import { _withQuantumArray } from "../internal/native/array.ts";
 import { _withString } from "../internal/native/string.ts";
 
-export interface IPixelCollection {
+export interface IPixelCollection extends INativeInstance {
   getArea(x: number, y: number, width: number, height: number): quantumArray;
   getPixel(x: number, y: number): quantumArray;
   setArea(

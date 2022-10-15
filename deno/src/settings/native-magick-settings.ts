@@ -3,7 +3,7 @@
 import { ImageMagick } from "../image-magick.ts";
 import { Magick } from "../magick.ts";
 import { MagickSettings } from "./magick-settings.ts";
-import { NativeInstance } from "../internal/native-instance.ts";
+import { NativeInstance } from "../native-instance.ts";
 import { _withString } from "../internal/native/string.ts";
 
 /** @internal */
