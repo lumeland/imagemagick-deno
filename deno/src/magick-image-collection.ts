@@ -1,29 +1,80 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
-import { ImageMagick } from "./image-magick.ts";
+import { Disposable } from "./internal/disposable.ts";
+import { DisposableArray } from "./internal/disposable-array.ts";
 import { Exception } from "./internal/exception/exception.ts";
+import { IDisposable } from "./disposable.ts";
+import { ImageMagick } from "./image-magick.ts";
 import { IMagickImage } from "./magick-image.ts";
 import { MagickError } from "./magick-error.ts";
 import { MagickFormat } from "./magick-format.ts";
 import { MagickImage } from "./magick-image.ts";
 import { MagickReadSettings } from "./settings/magick-read-settings.ts";
 import { MagickSettings } from "./settings/magick-settings.ts";
+import { MontageSettings } from "./settings/montage-settings.ts";
 import { Pointer } from "./internal/pointer/pointer.ts";
 
-export interface IMagickImageCollection extends Array<IMagickImage> {
-  /** @internal */
-  _use(func: (images: IMagickImageCollection) => void): void;
-  /** @internal */
-  _use(func: (images: IMagickImageCollection) => Promise<void>): Promise<void>;
+enum LayerMethod {
+  Undefined,
+  Coalesce,
+  CompareAny,
+  CompareClear,
+  CompareOverlay,
+  Dispose,
+  Optimize,
+  OptimizeImage,
+  OptimizePlus,
+  OptimizeTrans,
+  RemoveDups,
+  RemoveZero,
+  Composite,
+  Merge,
+  Flatten,
+  Mosaic,
+  Trimbounds,
+}
 
-  dispose(): void;
+export interface IMagickImageCollection
+  extends Array<IMagickImage>, IDisposable {
+  /** @internal */
+  _use<TReturnType>(
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  /** @internal */
+  _use<TReturnType>(
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+
+  flatten<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
+  flatten<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  merge<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
+  merge<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  montage<TReturnType>(
+    settings: MontageSettings,
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  montage<TReturnType>(
+    settings: MontageSettings,
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  mosaic<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
+  mosaic<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
   read(fileName: string, settings?: MagickReadSettings): void;
   read(array: Uint8Array, settings?: MagickReadSettings): void;
-  write(func: (data: Uint8Array) => void, format?: MagickFormat): void;
-  write(
-    func: (data: Uint8Array) => Promise<void>,
+  write<TReturnType>(
+    func: (data: Uint8Array) => TReturnType,
     format?: MagickFormat,
-  ): Promise<void>;
+  ): TReturnType;
+  write<TReturnType>(
+    func: (data: Uint8Array) => Promise<TReturnType>,
+    format?: MagickFormat,
+  ): Promise<TReturnType>;
 }
 
 export class MagickImageCollection extends Array<MagickImage>
@@ -38,6 +89,81 @@ export class MagickImageCollection extends Array<MagickImage>
       image.dispose();
       image = this.pop();
     }
+  }
+
+  flatten<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
+  flatten<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  flatten<TReturnType>(
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    return this.mergeImages(LayerMethod.Flatten, func);
+  }
+
+  merge<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
+  merge<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  merge<TReturnType>(
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    return this.mergeImages(LayerMethod.Merge, func);
+  }
+
+  montage<TReturnType>(
+    settings: MontageSettings,
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  montage<TReturnType>(
+    settings: MontageSettings,
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  montage<TReturnType>(
+    settings: MontageSettings,
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    this.throwIfEmpty();
+
+    try {
+      this.attachImages();
+
+      const result = settings._use((settingsPtr) => {
+        return Exception.use((exception) => {
+          const images = ImageMagick._api._MagickImageCollection_Montage(
+            this[0]._instance,
+            settingsPtr._instance,
+            exception.ptr,
+          );
+          return this.checkResult(images, exception);
+        });
+      });
+
+      const collection = MagickImageCollection._createFromImages(
+        result,
+        this.getSettings(),
+      );
+      const transparentColor = settings.transparentColor;
+      if (transparentColor !== undefined) {
+        collection.forEach((image) => {
+          image.transparent(transparentColor);
+        });
+      }
+
+      return collection.merge(func);
+    } finally {
+      this.detachImages();
+    }
+  }
+
+  mosaic<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
+  mosaic<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  mosaic<TReturnType>(
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    return this.mergeImages(LayerMethod.Mosaic, func);
   }
 
   read(fileName: string, settings?: MagickReadSettings): void;
@@ -85,24 +211,27 @@ export class MagickImageCollection extends Array<MagickImage>
     });
   }
 
-  write(func: (data: Uint8Array) => void, format?: MagickFormat): void;
-  write(
-    func: (data: Uint8Array) => Promise<void>,
+  write<TReturnType>(
+    func: (data: Uint8Array) => TReturnType,
     format?: MagickFormat,
-  ): Promise<void>;
-  write(
-    func: (data: Uint8Array) => void | Promise<void>,
+  ): TReturnType;
+  write<TReturnType>(
+    func: (data: Uint8Array) => Promise<TReturnType>,
     format?: MagickFormat,
-  ): void | Promise<void> {
+  ): Promise<TReturnType>;
+  write<TReturnType>(
+    func: (data: Uint8Array) => TReturnType | Promise<TReturnType>,
+    format?: MagickFormat,
+  ): TReturnType | Promise<TReturnType> {
     this.throwIfEmpty();
 
     let data = 0;
-    let bytes = new Uint8Array();
+    let length = 0;
 
     Exception.use((exception) => {
       Pointer.use((pointer) => {
         const image = this[0];
-        const settings = this[0]._getSettings()._clone();
+        const settings = this.getSettings();
         if (format !== undefined) {
           settings.format = format;
         } else {
@@ -118,16 +247,7 @@ export class MagickImageCollection extends Array<MagickImage>
               pointer.ptr,
               exception.ptr,
             );
-            if (data !== 0) {
-              bytes = ImageMagick._api.HEAPU8.subarray(
-                data,
-                data + pointer.value,
-              );
-            }
-          } catch {
-            if (data !== 0) {
-              data = ImageMagick._api._MagickMemory_Relinquish(data);
-            }
+            length = pointer.value;
           } finally {
             this.detachImages();
           }
@@ -135,21 +255,8 @@ export class MagickImageCollection extends Array<MagickImage>
       });
     });
 
-    try {
-      let result = func(bytes);
-      if (!!result && typeof result.then === "function") {
-        result = result.finally(() => {
-          if (data !== 0) {
-            data = ImageMagick._api._MagickMemory_Relinquish(data);
-          }
-        });
-      }
-      return result;
-    } finally {
-      if (data !== 0) {
-        data = ImageMagick._api._MagickMemory_Relinquish(data);
-      }
-    }
+    const array = new DisposableArray(data, length, func);
+    return Disposable._disposeAfterExecution(array, array.func);
   }
 
   static create(): IMagickImageCollection {
@@ -163,22 +270,25 @@ export class MagickImageCollection extends Array<MagickImage>
   ): IMagickImageCollection {
     const collection = MagickImageCollection.createObject();
 
-    collection.addImages(images, settings);
+    collection.addImages(images, settings._clone());
 
     return collection;
   }
 
   /** @internal */
-  _use(func: (images: IMagickImageCollection) => void): void;
-  _use(func: (images: IMagickImageCollection) => Promise<void>): Promise<void>;
-  _use(
-    func: (images: IMagickImageCollection) => void | Promise<void>,
-  ): void | Promise<void> {
-    try {
-      return func(this);
-    } finally {
-      this.dispose();
-    }
+  _use<TReturnType>(
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  /** @internal */
+  _use<TReturnType>(
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  _use<TReturnType>(
+    func: (
+      images: IMagickImageCollection,
+    ) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    return Disposable._disposeAfterExecution(this, func);
   }
 
   private addImages(images: number, settings: MagickSettings) {
@@ -222,9 +332,47 @@ export class MagickImageCollection extends Array<MagickImage>
     }
   }
 
+  private getSettings(): MagickSettings {
+    return this[0]._getSettings()._clone();
+  }
+
+  private mergeImages<TReturnType>(
+    layerMethod: LayerMethod,
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    this.throwIfEmpty();
+
+    try {
+      this.attachImages();
+
+      const result = Exception.use((exception) => {
+        const images = ImageMagick._api._MagickImageCollection_Merge(
+          this[0]._instance,
+          layerMethod,
+          exception.ptr,
+        );
+        return this.checkResult(images, exception);
+      });
+
+      const image = MagickImage._createFromImage(result, this.getSettings());
+      return image._use(func);
+    } finally {
+      this.detachImages();
+    }
+  }
+
   private throwIfEmpty() {
     if (this.length === 0) {
       throw new MagickError("operation requires at least one image");
     }
+  }
+
+  private checkResult(images: number, exception: Exception): number {
+    return exception.check(() => {
+      return images;
+    }, () => {
+      ImageMagick._api._MagickImageCollection_Dispose(images);
+      return 0;
+    });
   }
 }

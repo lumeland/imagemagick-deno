@@ -1,14 +1,16 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
-import { ImageMagick } from "../image-magick.ts";
+import { Disposable } from "../internal/disposable.ts";
 import { Exception } from "../internal/exception/exception.ts";
-import { INativeInstance, NativeInstance } from "../native-instance.ts";
+import { IDisposable } from "../disposable.ts";
+import { ImageMagick } from "../image-magick.ts";
 import { IMagickImage } from "../magick-image.ts";
+import { NativeInstance } from "../native-instance.ts";
 import { quantumArray } from "../wasm/magick.ts";
 import { _withQuantumArray } from "../internal/native/array.ts";
 import { _withString } from "../internal/native/string.ts";
 
-export interface IPixelCollection extends INativeInstance {
+export interface IPixelCollection extends IDisposable {
   getArea(x: number, y: number, width: number, height: number): quantumArray;
   getPixel(x: number, y: number): quantumArray;
   setArea(
@@ -63,13 +65,18 @@ export class PixelCollection extends NativeInstance
   static _use<TReturnType>(
     image: IMagickImage,
     func: (pixels: IPixelCollection) => TReturnType,
-  ): TReturnType {
+  ): TReturnType;
+  /** @internal */
+  static _use<TReturnType>(
+    image: IMagickImage,
+    func: (pixels: IPixelCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static _use<TReturnType>(
+    image: IMagickImage,
+    func: (pixels: IPixelCollection) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
     const pixels = new PixelCollection(image);
-    try {
-      return func(pixels);
-    } finally {
-      pixels.dispose();
-    }
+    return Disposable._disposeAfterExecution(pixels, func);
   }
 
   /** @internal */

@@ -1,5 +1,6 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
+import { Disposable } from "../internal/disposable.ts";
 import { IDefines } from "../defines/defines.ts";
 import { MagickFormat } from "../magick-format.ts";
 import { MagickColor } from "../magick-color.ts";
@@ -85,11 +86,7 @@ export class MagickSettings {
     func: (settings: NativeMagickSettings) => TReturnType,
   ): TReturnType {
     const settings = new NativeMagickSettings(this);
-    try {
-      return func(settings);
-    } finally {
-      settings.dispose();
-    }
+    return Disposable._disposeAfterExecution(settings, func);
   }
 
   private parseDefine(format: MagickFormat, name: string): string {

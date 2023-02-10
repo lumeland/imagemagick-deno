@@ -1,5 +1,6 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
+import { Disposable } from "../internal/disposable.ts";
 import { ImageMagick } from "../image-magick.ts";
 import { MagickSettings } from "./magick-settings.ts";
 import { NativeMagickSettings } from "./native-magick-settings.ts";
@@ -22,18 +23,14 @@ export class MagickReadSettings extends MagickSettings {
   ): TReturnType {
     const settings = new NativeMagickSettings(this);
 
-    try {
-      const size = this.getSize();
-      if (size !== "") {
-        _withString(size, (sizePtr) => {
-          ImageMagick._api._MagickSettings_SetSize(settings._instance, sizePtr);
-        });
-      }
-
-      return func(settings);
-    } finally {
-      settings.dispose();
+    const size = this.getSize();
+    if (size !== "") {
+      _withString(size, (sizePtr) => {
+        ImageMagick._api._MagickSettings_SetSize(settings._instance, sizePtr);
+      });
     }
+
+    return Disposable._disposeAfterExecution(settings, func);
   }
 
   private getSize(): string {

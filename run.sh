@@ -6,7 +6,7 @@ rm magick-wasm.tgz
 rm test/unsplash-blur.jpg
 
 # Clone the repo
-git clone --depth 1 --branch 0.0.17 https://github.com/dlemstra/magick-wasm.git
+git clone --depth 1 --branch 0.0.19 https://github.com/dlemstra/magick-wasm.git
 
 # Download the wasm file
 npm install @dlemstra/magick-native

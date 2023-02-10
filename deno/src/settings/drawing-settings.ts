@@ -1,5 +1,6 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
+import { Disposable } from "../internal/disposable.ts";
 import { MagickColor } from "../magick-color.ts";
 import { MagickSettings } from "./magick-settings.ts";
 import { NativeDrawingSettings } from "./native-drawing-settings.ts";
@@ -35,10 +36,6 @@ export class DrawingSettings {
     func: (settings: NativeDrawingSettings) => TReturnType,
   ): TReturnType {
     const settings = new NativeDrawingSettings(this);
-    try {
-      return func(settings);
-    } finally {
-      settings.dispose();
-    }
+    return Disposable._disposeAfterExecution(settings, func);
   }
 }

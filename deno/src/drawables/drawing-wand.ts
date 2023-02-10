@@ -2,22 +2,39 @@
 // Licensed under the Apache License, Version 2.0.
 import { DrawingSettings } from "../settings/drawing-settings.ts";
 import { Exception } from "../internal/exception/exception.ts";
+import { Gravity } from "../gravity.ts";
+import { IDisposable } from "../disposable.ts";
 import { IDrawable } from "./drawable.ts";
 import { ImageMagick } from "../image-magick.ts";
 import { IMagickImage } from "../magick-image.ts";
 import { MagickColor } from "../magick-color.ts";
 import { MagickSettings } from "../settings/magick-settings.ts";
-import { INativeInstance, NativeInstance } from "../native-instance.ts";
+import { NativeInstance } from "../native-instance.ts";
 import { PaintMethod } from "../paint-method.ts";
 import { _withString } from "../internal/native/string.ts";
 
-export interface IDrawingWand extends INativeInstance {
+export interface IDrawingWand extends IDisposable {
   color(x: number, y: number, paintMethod: number): void;
   draw(drawables: IDrawable[]): void;
   fillColor(value: MagickColor): void;
   fillOpacity(value: number): void;
   font(family: string): void;
   fontPointSize(value: number): void;
+  gravity(value: Gravity): void;
+  rectangle(
+    upperLeftX: number,
+    upperLeftY: number,
+    lowerRightX: number,
+    lowerRightY: number,
+  ): void;
+  roundRectangle(
+    upperLeftX: number,
+    upperLeftY: number,
+    lowerRightX: number,
+    lowerRightY: number,
+    cornerWidth: number,
+    cornerHeight: number,
+  ): void;
   text(x: number, y: number, value: string): void;
 }
 
@@ -91,6 +108,52 @@ export class DrawingWand extends NativeInstance implements IDrawingWand {
       ImageMagick._api._DrawingWand_FontPointSize(
         this._instance,
         value,
+        exception,
+      );
+    });
+  }
+
+  gravity(value: Gravity): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._DrawingWand_Gravity(this._instance, value, exception);
+    });
+  }
+
+  rectangle(
+    upperLeftX: number,
+    upperLeftY: number,
+    lowerRightX: number,
+    lowerRightY: number,
+  ): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._DrawingWand_Rectangle(
+        this._instance,
+        upperLeftX,
+        upperLeftY,
+        lowerRightX,
+        lowerRightY,
+        exception,
+      );
+    });
+  }
+
+  roundRectangle(
+    upperLeftX: number,
+    upperLeftY: number,
+    lowerRightX: number,
+    lowerRightY: number,
+    cornerWidth: number,
+    cornerHeight: number,
+  ): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._DrawingWand_RoundRectangle(
+        this._instance,
+        upperLeftX,
+        upperLeftY,
+        lowerRightX,
+        lowerRightY,
+        cornerWidth,
+        cornerHeight,
         exception,
       );
     });

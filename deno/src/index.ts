@@ -5,6 +5,8 @@ export * from "./alpha-option.ts";
 
 export * from "./auto-threshold-method.ts";
 
+export * from "./channel-statistics.ts";
+
 export * from "./channels.ts";
 
 export * from "./color-space.ts";
@@ -19,6 +21,8 @@ export * from "./defines/defines.ts";
 
 export * from "./defines/magick-define.ts";
 
+export * from "./disposable.ts";
+
 export * from "./distort-method.ts";
 
 export * from "./drawables/drawable-color.ts";
@@ -30,6 +34,12 @@ export * from "./drawables/drawable-fill-opacity.ts";
 export * from "./drawables/drawable-font-point-size.ts";
 
 export * from "./drawables/drawable-font.ts";
+
+export * from "./drawables/drawable-gravity.ts";
+
+export * from "./drawables/drawable-rectangle.ts";
+
+export * from "./drawables/drawable-round-rectangle.ts";
 
 export * from "./drawables/drawable-text.ts";
 
@@ -98,5 +108,9 @@ export * from "./settings/drawing-settings.ts";
 export * from "./settings/magick-read-settings.ts";
 
 export * from "./settings/magick-settings.ts";
+
+export * from "./settings/montage-settings.ts";
+
+export * from "./statistics.ts";
 
 export * from "./virtual-pixel-method.ts";

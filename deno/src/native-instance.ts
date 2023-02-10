@@ -1,13 +1,9 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
-import { MagickError } from "./magick-error.ts";
 import { Exception } from "./internal/exception/exception.ts";
+import { MagickError } from "./magick-error.ts";
 
-export interface INativeInstance {
-  dispose(): void;
-}
-
-export abstract class NativeInstance implements INativeInstance {
+export abstract class NativeInstance {
   private readonly disposeMethod: (instance: number) => void;
   private instance: number;
 

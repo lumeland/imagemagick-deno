@@ -5,6 +5,8 @@ import { AutoThresholdMethod } from "./auto-threshold-method.ts";
 import { Channels } from "./channels.ts";
 import { ColorSpace } from "./color-space.ts";
 import { CompositeOperator } from "./composite-operator.ts";
+import { Disposable } from "./internal/disposable.ts";
+import { DisposableArray } from "./internal/disposable-array.ts";
 import { DistortMethod } from "./distort-method.ts";
 import { DistortSettings } from "./settings/distort-settings.ts";
 import { DrawingWand } from "./drawables/drawing-wand.ts";
@@ -14,13 +16,14 @@ import { Exception } from "./internal/exception/exception.ts";
 import { FilterType } from "./filter-type.ts";
 import { Gravity } from "./gravity.ts";
 import { ImageMagick } from "./image-magick.ts";
+import { IDisposable } from "./disposable.ts";
 import { IDrawable } from "./drawables/drawable.ts";
 import { IImageProfile, ImageProfile } from "./profiles/image-profile.ts";
 import {
   IMagickImageCollection,
   MagickImageCollection,
 } from "./magick-image-collection.ts";
-import { INativeInstance, NativeInstance } from "./native-instance.ts";
+import { NativeInstance } from "./native-instance.ts";
 import { MagickColor } from "./magick-color.ts";
 import { MagickError } from "./magick-error.ts";
 import { MagickFormat } from "./magick-format.ts";
@@ -44,10 +47,21 @@ import { VirtualPixelMethod } from "./virtual-pixel-method.ts";
 import { _createString, _withString } from "./internal/native/string.ts";
 import { _getEdges } from "./gravity.ts";
 import { _withDoubleArray } from "./internal/native/array.ts";
+import { IStatistics, Statistics } from "./statistics.ts";
 
-export interface IMagickImage extends INativeInstance {
+export interface IMagickImage extends IDisposable {
   /** @internal */
   _instance: number;
+  /** @internal */
+  _use<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
+  /** @internal */
+  _use<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  /** @internal */
+  _use<TReturnType>(
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType>;
 
   animationDelay: number;
   animationIterations: number;
@@ -56,6 +70,7 @@ export interface IMagickImage extends INativeInstance {
   readonly attributeNames: ReadonlyArray<string>;
   backgroundColor: MagickColor;
   borderColor: MagickColor;
+  readonly channels: ReadonlyArray<PixelChannel>;
   readonly channelCount: number;
   colorFuzz: Percentage;
   colorSpace: ColorSpace;
@@ -64,8 +79,9 @@ export interface IMagickImage extends INativeInstance {
   filterType: FilterType;
   format: MagickFormat;
   hasAlpha: boolean;
-  interpolate: PixelInterpolateMethod;
   readonly height: number;
+  interpolate: PixelInterpolateMethod;
+  label: string | null;
   orientation: OrientationType;
   page: MagickGeometry;
   quality: number;
@@ -103,8 +119,10 @@ export interface IMagickImage extends INativeInstance {
     numberBins: number,
     clipLimit: number,
   ): void;
-  clone(func: (image: IMagickImage) => void): void;
-  clone(func: (image: IMagickImage) => Promise<void>): Promise<void>;
+  clone<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
+  clone<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
   colorAlpha(color: MagickColor): void;
   compare(image: IMagickImage, metric: ErrorMetric): number;
   compare(image: IMagickImage, metric: ErrorMetric, channels: Channels): number;
@@ -224,6 +242,7 @@ export interface IMagickImage extends INativeInstance {
   crop(geometry: MagickGeometry, gravity: Gravity): void;
   crop(width: number, height: number): void;
   crop(width: number, height: number, gravity: Gravity): void;
+  cropToTiles(geometry: MagickGeometry): IMagickImageCollection;
   deskew(threshold: Percentage): number;
   distort(method: DistortMethod, params: number[]): void;
   distort(
@@ -265,13 +284,18 @@ export interface IMagickImage extends INativeInstance {
   getArtifact(name: string): string | null;
   getAttribute(name: string): string | null;
   getProfile(name: string): IImageProfile | null;
-  getWriteMask(func: (mask: IMagickImage | null) => void): void;
-  getWriteMask(
-    func: (mask: IMagickImage | null) => Promise<void>,
-  ): Promise<void>;
+  getWriteMask<TReturnType>(
+    func: (mask: IMagickImage | null) => TReturnType,
+  ): TReturnType;
+  getWriteMask<TReturnType>(
+    func: (mask: IMagickImage | null) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
   getPixels<TReturnType>(
     func: (pixels: IPixelCollection) => TReturnType,
   ): TReturnType;
+  getPixels<TReturnType>(
+    func: (pixels: IPixelCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
   histogram(): Map<string, number>;
   inverseContrast(): void;
   inverseSigmoidalContrast(contrast: number): void;
@@ -285,6 +309,7 @@ export interface IMagickImage extends INativeInstance {
     midpoint: number,
     channels: Channels,
   ): void;
+  inverseTransparent(color: MagickColor): void;
   level(blackPoint: Percentage, whitePoint: Percentage): void;
   level(blackPoint: Percentage, whitePoint: Percentage, gamma: number): void;
   level(
@@ -298,6 +323,7 @@ export interface IMagickImage extends INativeInstance {
     whitePoint: Percentage,
     gamma: number,
   ): void;
+  linearStretch(blackPoint: Percentage, whitePoint: Percentage): void;
   liquidRescale(geometry: MagickGeometry): void;
   liquidRescale(width: number, height: number): void;
   modulate(brightness: Percentage): void;
@@ -327,18 +353,20 @@ export interface IMagickImage extends INativeInstance {
   resize(geometry: MagickGeometry): void;
   resize(width: number, height: number): void;
   rotate(degrees: number): void;
-  separate(func: (images: IMagickImageCollection) => void): void;
-  separate(
-    func: (images: IMagickImageCollection) => Promise<void>,
-  ): Promise<void>;
-  separate(
-    func: (images: IMagickImageCollection) => void,
+  separate<TReturnType>(
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  separate<TReturnType>(
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  separate<TReturnType>(
+    func: (images: IMagickImageCollection) => TReturnType,
     channels: Channels,
-  ): void;
-  separate(
-    func: (images: IMagickImageCollection) => Promise<void>,
+  ): TReturnType;
+  separate<TReturnType>(
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
     channels: Channels,
-  ): Promise<void>;
+  ): Promise<TReturnType>;
   setArtifact(name: string, value: string): void;
   setArtifact(name: string, value: boolean): void;
   setAttribute(name: string, value: string): void;
@@ -356,8 +384,11 @@ export interface IMagickImage extends INativeInstance {
     channels: Channels,
   ): void;
   splice(geometry: MagickGeometry): void;
+  statistics(): IStatistics;
+  statistics(channels: Channels): IStatistics;
   strip(): void;
   toString(): string;
+  transparent(color: MagickColor): void;
   trim(): void;
   trim(...edges: Gravity[]): void;
   trim(percentage: Percentage): void;
@@ -365,11 +396,14 @@ export interface IMagickImage extends INativeInstance {
   vignette(radius: number, sigma: number, x: number, y: number): void;
   wave(): void;
   wave(method: PixelInterpolateMethod, amplitude: number, length: number): void;
-  write(func: (data: Uint8Array) => void, format?: MagickFormat): void;
-  write(
-    func: (data: Uint8Array) => Promise<void>,
+  write<TReturnType>(
+    func: (data: Uint8Array) => TReturnType,
     format?: MagickFormat,
-  ): Promise<void>;
+  ): TReturnType;
+  write<TReturnType>(
+    func: (data: Uint8Array) => Promise<TReturnType>,
+    format?: MagickFormat,
+  ): Promise<TReturnType>;
   writeToCanvas(canvas: HTMLCanvasElement): void;
 }
 
@@ -467,6 +501,23 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  get channels(): ReadonlyArray<PixelChannel> {
+    const channels: PixelChannel[] = [];
+    [
+      PixelChannel.Red,
+      PixelChannel.Green,
+      PixelChannel.Blue,
+      PixelChannel.Black,
+      PixelChannel.Alpha,
+    ].forEach((channel) => {
+      if (ImageMagick._api._MagickImage_HasChannel(this._instance, channel)) {
+        channels.push(channel);
+      }
+    });
+
+    return channels;
+  }
+
   get channelCount(): number {
     return ImageMagick._api._MagickImage_ChannelCount_Get(this._instance);
   }
@@ -561,6 +612,10 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  get height(): number {
+    return ImageMagick._api._MagickImage_Height_Get(this._instance);
+  }
+
   get interpolate(): PixelInterpolateMethod {
     return ImageMagick._api._MagickImage_Interpolate_Get(this._instance);
   }
@@ -568,8 +623,15 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     ImageMagick._api._MagickImage_Interpolate_Set(this._instance, value);
   }
 
-  get height(): number {
-    return ImageMagick._api._MagickImage_Height_Get(this._instance);
+  get label(): string | null {
+    return this.getAttribute("label");
+  }
+  set label(value: string | null) {
+    if (value === null) {
+      this.removeAttribute("label");
+    } else {
+      this.setAttribute("label", value);
+    }
   }
 
   get orientation(): OrientationType {
@@ -798,21 +860,19 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
-  clone(func: (image: IMagickImage) => void): void;
-  clone(func: (image: IMagickImage) => Promise<void>): Promise<void>;
-  clone(
-    func: (image: IMagickImage) => void | Promise<void>,
-  ): void | Promise<void> {
+  clone<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
+  clone<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  clone<TReturnType>(
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
     return Exception.usePointer((exception) => {
       const image = new MagickImage(
         ImageMagick._api._MagickImage_Clone(this._instance, exception),
         this._settings._clone(),
       );
-      try {
-        return func(image);
-      } finally {
-        image.dispose();
-      }
+      return image._use(func);
     });
   }
 
@@ -1141,6 +1201,23 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  cropToTiles(geometry: MagickGeometry): IMagickImageCollection {
+    return Exception.use((exception) => {
+      return _withString(geometry.toString(), (geometryPtr) => {
+        const images = ImageMagick._api._MagickImage_CropToTiles(
+          this._instance,
+          geometryPtr,
+          exception.ptr,
+        );
+        const collection = MagickImageCollection._createFromImages(
+          images,
+          this._settings,
+        );
+        return collection;
+      });
+    });
+  }
+
   static create(): IMagickImage {
     return new MagickImage(MagickImage.createInstance(), new MagickSettings());
   }
@@ -1374,35 +1451,45 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
-  getWriteMask(func: (mask: IMagickImage | null) => void): void;
-  getWriteMask(
-    func: (mask: IMagickImage | null) => Promise<void>,
-  ): Promise<void>;
-  getWriteMask(
-    func: (mask: IMagickImage | null) => void | Promise<void>,
-  ): void | Promise<void> {
-    return Exception.usePointer((exception) => {
-      const instance = ImageMagick._api._MagickImage_GetWriteMask(
+  getWriteMask<TReturnType>(
+    func: (mask: IMagickImage | null) => TReturnType,
+  ): TReturnType;
+  getWriteMask<TReturnType>(
+    func: (mask: IMagickImage | null) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  getWriteMask<TReturnType>(
+    func: (mask: IMagickImage | null) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    const instance = Exception.usePointer((exception) => {
+      return ImageMagick._api._MagickImage_GetWriteMask(
         this._instance,
         exception,
       );
-      const image = instance === 0
-        ? null
-        : new MagickImage(instance, new MagickSettings());
-      return func(image);
     });
+    const image = instance === 0
+      ? null
+      : new MagickImage(instance, new MagickSettings());
+    if (image == null) {
+      return func(image);
+    } else {
+      return image._use(func);
+    }
   }
 
   getPixels<TReturnType>(
     func: (pixels: IPixelCollection) => TReturnType,
-  ): TReturnType {
+  ): TReturnType;
+  getPixels<TReturnType>(
+    func: (pixels: IPixelCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  getPixels<TReturnType>(
+    func: (pixels: IPixelCollection) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
     if (this._settings._ping) {
       throw new MagickError("image contains no pixel data");
     }
 
-    return PixelCollection._use(this, (pixels) => {
-      return func(pixels);
-    });
+    return PixelCollection._use(this, func);
   }
 
   histogram(): Map<string, number> {
@@ -1463,6 +1550,19 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     );
   }
 
+  inverseTransparent(color: MagickColor): void {
+    color._use((valuePtr) => {
+      Exception.usePointer((exception) => {
+        ImageMagick._api._MagickImage_Transparent(
+          this._instance,
+          valuePtr,
+          1,
+          exception,
+        );
+      });
+    });
+  }
+
   level(blackPoint: Percentage, whitePoint: Percentage): void;
   level(blackPoint: Percentage, whitePoint: Percentage, gamma: number): void;
   level(
@@ -1507,6 +1607,17 @@ export class MagickImage extends NativeInstance implements IMagickImage {
         whitePoint.toQuantum(),
         gamma,
         channels,
+        exception,
+      );
+    });
+  }
+
+  linearStretch(blackPoint: Percentage, whitePoint: Percentage): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._MagickImage_LinearStretch(
+        this._instance,
+        blackPoint.toDouble(),
+        whitePoint.toQuantum(),
         exception,
       );
     });
@@ -1716,22 +1827,26 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
-  separate(func: (images: IMagickImageCollection) => void): void;
-  separate(
-    func: (images: IMagickImageCollection) => Promise<void>,
-  ): Promise<void>;
-  separate(
-    func: (images: IMagickImageCollection) => void,
+  separate<TReturnType>(
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  separate<TReturnType>(
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  separate<TReturnType>(
+    func: (images: IMagickImageCollection) => TReturnType,
     channels: Channels,
-  ): void;
-  separate(
-    func: (images: IMagickImageCollection) => Promise<void>,
+  ): TReturnType;
+  separate<TReturnType>(
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
     channels: Channels,
-  ): Promise<void>;
-  separate(
-    func: (images: IMagickImageCollection) => void | Promise<void>,
+  ): Promise<TReturnType>;
+  separate<TReturnType>(
+    func: (
+      images: IMagickImageCollection,
+    ) => TReturnType | Promise<TReturnType>,
     channelsOrUndefined?: Channels,
-  ): void | Promise<void> {
+  ): TReturnType | Promise<TReturnType> {
     return Exception.use((exception) => {
       const channels = this.valueOrDefault(
         channelsOrUndefined,
@@ -1744,7 +1859,7 @@ export class MagickImage extends NativeInstance implements IMagickImage {
       );
       const collection = MagickImageCollection._createFromImages(
         images,
-        this._settings._clone(),
+        this._settings,
       );
       return collection._use(func);
     });
@@ -1868,6 +1983,22 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  statistics(): IStatistics;
+  statistics(channels: Channels): IStatistics;
+  statistics(channelsOrUndefined?: Channels): IStatistics {
+    const channels = this.valueOrDefault(channelsOrUndefined, Channels.Default);
+    return Exception.usePointer((exception) => {
+      const list = ImageMagick._api._MagickImage_Statistics(
+        this._instance,
+        channels,
+        exception,
+      );
+      const statistics = Statistics._create(this, list, channels);
+      ImageMagick._api._Statistics_DisposeList(list);
+      return statistics;
+    });
+  }
+
   strip(): void {
     Exception.usePointer((exception) => {
       ImageMagick._api._MagickImage_Strip(this._instance, exception);
@@ -1878,6 +2009,19 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     `${this.format} ${this.width}x${this.height} ${this.depth}-bit ${
       ColorSpace[this.colorSpace]
     }`;
+
+  transparent(color: MagickColor): void {
+    color._use((valuePtr) => {
+      Exception.usePointer((exception) => {
+        ImageMagick._api._MagickImage_Transparent(
+          this._instance,
+          valuePtr,
+          0,
+          exception,
+        );
+      });
+    });
+  }
 
   trim(): void;
   trim(...edges: Gravity[]): void;
@@ -1958,17 +2102,20 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
-  write(func: (data: Uint8Array) => void, format?: MagickFormat): void;
-  write(
-    func: (data: Uint8Array) => Promise<void>,
+  write<TReturnType>(
+    func: (data: Uint8Array) => TReturnType,
     format?: MagickFormat,
-  ): Promise<void>;
-  write(
-    func: (data: Uint8Array) => void | Promise<void>,
+  ): TReturnType;
+  write<TReturnType>(
+    func: (data: Uint8Array) => Promise<TReturnType>,
     format?: MagickFormat,
-  ): void | Promise<void> {
+  ): Promise<TReturnType>;
+  write<TReturnType>(
+    func: (data: Uint8Array) => TReturnType | Promise<TReturnType>,
+    format?: MagickFormat,
+  ): TReturnType | Promise<TReturnType> {
     let data = 0;
-    let bytes = new Uint8Array();
+    let length = 0;
 
     Exception.use((exception) => {
       Pointer.use((pointer) => {
@@ -1984,12 +2131,7 @@ export class MagickImage extends NativeInstance implements IMagickImage {
               pointer.ptr,
               exception.ptr,
             );
-            if (data !== 0) {
-              bytes = ImageMagick._api.HEAPU8.subarray(
-                data,
-                data + pointer.value,
-              );
-            }
+            length = pointer.value;
           } catch {
             if (data !== 0) {
               data = ImageMagick._api._MagickMemory_Relinquish(data);
@@ -1999,21 +2141,8 @@ export class MagickImage extends NativeInstance implements IMagickImage {
       });
     });
 
-    try {
-      let result = func(bytes);
-      if (!!result && typeof result.then === "function") {
-        result = result.finally(() => {
-          if (data !== 0) {
-            data = ImageMagick._api._MagickMemory_Relinquish(data);
-          }
-        });
-      }
-      return result;
-    } finally {
-      if (data !== 0) {
-        data = ImageMagick._api._MagickMemory_Relinquish(data);
-      }
-    }
+    const array = new DisposableArray(data, length, func);
+    return Disposable._disposeAfterExecution(array, array.func);
   }
 
   writeToCanvas(canvas: HTMLCanvasElement): void {
@@ -2061,9 +2190,22 @@ export class MagickImage extends NativeInstance implements IMagickImage {
   }
 
   /** @internal */
+  _use<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
+  /** @internal */
+  _use<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  _use<TReturnType>(
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    return Disposable._disposeAfterExecution(this, func);
+  }
+
+  /** @internal */
   static _use<TReturnType>(
     func: (image: IMagickImage) => TReturnType,
   ): TReturnType;
+  /** @internal */
   static _use<TReturnType>(
     func: (image: IMagickImage) => Promise<TReturnType>,
   ): Promise<TReturnType>;
@@ -2071,11 +2213,7 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
   ): TReturnType | Promise<TReturnType> {
     const image = MagickImage.create();
-    try {
-      return func(image);
-    } finally {
-      image.dispose();
-    }
+    return image._use<TReturnType>(func);
   }
 
   private privateSigmoidalContrast(

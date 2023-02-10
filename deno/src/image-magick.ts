@@ -8,6 +8,7 @@ import {
 } from "./magick-image-collection.ts";
 import { MagickColor } from "./magick-color.ts";
 import { MagickError } from "./magick-error.ts";
+import { MagickFormat } from "./magick-format.ts";
 import { MagickReadSettings } from "./settings/magick-read-settings.ts";
 import { _withNativeString } from "./internal/native/string.ts";
 
@@ -58,176 +59,230 @@ export class ImageMagick {
     instance.api = value;
   }
 
-  static read(
+  static read<TReturnType>(
     color: MagickColor,
     width: number,
     height: number,
-    func: (image: IMagickImage) => void,
-  ): void;
-  static read(
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  static read<TReturnType>(
     color: MagickColor,
     width: number,
     height: number,
-    func: (image: IMagickImage) => Promise<void>,
-  ): Promise<void>;
-  static read(fileName: string, func: (image: IMagickImage) => void): void;
-  static read(
-    fileName: string,
-    func: (image: IMagickImage) => Promise<void>,
-  ): Promise<void>;
-  static read(array: Uint8Array, func: (image: IMagickImage) => void): void;
-  static read(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static read<TReturnType>(
     array: Uint8Array,
-    func: (image: IMagickImage) => Promise<void>,
-  ): Promise<void>;
-  static read(
-    fileName: string,
-    settings: MagickReadSettings,
-    func: (image: IMagickImage) => void,
-  ): void;
-  static read(
-    fileName: string,
-    settings: MagickReadSettings,
-    func: (image: IMagickImage) => Promise<void>,
-  ): Promise<void>;
-  static read(
+    format: MagickFormat,
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  static read<TReturnType>(
+    array: Uint8Array,
+    format: MagickFormat,
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static read<TReturnType>(
     array: Uint8Array,
     settings: MagickReadSettings,
-    func: (image: IMagickImage) => void,
-  ): void;
-  static read(
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  static read<TReturnType>(
     array: Uint8Array,
     settings: MagickReadSettings,
-    func: (image: IMagickImage) => Promise<void>,
-  ): Promise<void>;
-  static read(
-    fileNameOrArrayOrColor: string | Uint8Array | MagickColor,
-    funcOrSettingsOrWidth:
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static read<TReturnType>(
+    array: Uint8Array,
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  static read<TReturnType>(
+    array: Uint8Array,
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static read<TReturnType>(
+    fileName: string,
+    format: MagickFormat,
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  static read<TReturnType>(
+    fileName: string,
+    format: MagickFormat,
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static read<TReturnType>(
+    fileName: string,
+    settings: MagickReadSettings,
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  static read<TReturnType>(
+    fileName: string,
+    settings: MagickReadSettings,
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static read<TReturnType>(
+    fileName: string,
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  static read<TReturnType>(
+    fileName: string,
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static read<TReturnType>(
+    colorOrArrayOrFileName: MagickColor | Uint8Array | string,
+    widthOrFormatOrSetttingsOrFunc:
+      | number
+      | MagickFormat
       | MagickReadSettings
-      | ((image: IMagickImage) => void | Promise<void>)
-      | number,
-    funcOrheight?: ((image: IMagickImage) => void | Promise<void>) | number,
-    func?: (image: IMagickImage) => void | Promise<void>,
-  ): void | Promise<void> {
-    MagickImage._use((image) => {
-      if (fileNameOrArrayOrColor instanceof MagickColor) {
+      | ((image: IMagickImage) => TReturnType | Promise<TReturnType>),
+    heightOrFunc?:
+      | number
+      | ((image: IMagickImage) => TReturnType | Promise<TReturnType>),
+    func?: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    return MagickImage._use((image) => {
+      let callback = func;
+      if (colorOrArrayOrFileName instanceof MagickColor) {
         if (
-          typeof funcOrSettingsOrWidth === "number" &&
-          typeof funcOrheight === "number"
+          typeof widthOrFormatOrSetttingsOrFunc === "number" &&
+          typeof heightOrFunc === "number"
         ) {
           image.read(
-            fileNameOrArrayOrColor,
-            funcOrSettingsOrWidth,
-            funcOrheight,
+            colorOrArrayOrFileName,
+            widthOrFormatOrSetttingsOrFunc,
+            heightOrFunc,
           );
         }
-
-        if (func !== undefined) {
-          return func(image);
-        }
-      } else if (funcOrSettingsOrWidth instanceof MagickReadSettings) {
-        if (typeof fileNameOrArrayOrColor === "string") {
-          image.read(fileNameOrArrayOrColor, funcOrSettingsOrWidth);
+      } else if (
+        typeof widthOrFormatOrSetttingsOrFunc !== "number" &&
+        typeof heightOrFunc !== "number"
+      ) {
+        callback = heightOrFunc;
+        let settings: MagickReadSettings | undefined = undefined;
+        if (widthOrFormatOrSetttingsOrFunc instanceof MagickReadSettings) {
+          settings = widthOrFormatOrSetttingsOrFunc;
+        } else if (typeof widthOrFormatOrSetttingsOrFunc === "string") {
+          settings = new MagickReadSettings();
+          settings.format = widthOrFormatOrSetttingsOrFunc;
         } else {
-          image.read(fileNameOrArrayOrColor, funcOrSettingsOrWidth);
+          callback = widthOrFormatOrSetttingsOrFunc;
         }
 
-        if (funcOrheight !== undefined && typeof funcOrheight !== "number") {
-          return funcOrheight(image);
-        }
-      } else {
-        if (typeof fileNameOrArrayOrColor === "string") {
-          image.read(fileNameOrArrayOrColor);
+        if (typeof colorOrArrayOrFileName === "string") {
+          image.read(colorOrArrayOrFileName, settings);
         } else {
-          image.read(fileNameOrArrayOrColor);
-        }
-
-        if (typeof funcOrSettingsOrWidth !== "number") {
-          return funcOrSettingsOrWidth(image);
+          image.read(colorOrArrayOrFileName, settings);
         }
       }
+
+      /* eslint-disable-next-line @typescript-eslint/no-non-null-assertion */
+      return callback!(image);
     });
   }
 
-  static readCollection(
-    fileName: string,
-    func: (images: IMagickImageCollection) => void,
-  ): void;
-  static readCollection(
-    fileName: string,
-    func: (images: IMagickImageCollection) => Promise<void>,
-  ): Promise<void>;
-  static readCollection(
+  static readCollection<TReturnType>(
     array: Uint8Array,
-    func: (images: IMagickImageCollection) => void,
-  ): void;
-  static readCollection(
+    format: MagickFormat,
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  static readCollection<TReturnType>(
     array: Uint8Array,
-    func: (image: IMagickImageCollection) => Promise<void>,
-  ): Promise<void>;
-  static readCollection(
-    fileName: string,
-    settings: MagickReadSettings,
-    func: (images: IMagickImageCollection) => void,
-  ): void;
-  static readCollection(
-    fileName: string,
-    settings: MagickReadSettings,
-    func: (images: IMagickImageCollection) => Promise<void>,
-  ): Promise<void>;
-  static readCollection(
+    format: MagickFormat,
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static readCollection<TReturnType>(
     array: Uint8Array,
     settings: MagickReadSettings,
-    func: (images: IMagickImageCollection) => void,
-  ): void;
-  static readCollection(
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  static readCollection<TReturnType>(
     array: Uint8Array,
     settings: MagickReadSettings,
-    func: (images: IMagickImageCollection) => Promise<void>,
-  ): Promise<void>;
-  static readCollection(
-    fileNameOrArray: string | Uint8Array,
-    funcOrSettings:
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static readCollection<TReturnType>(
+    array: Uint8Array,
+    settings: MagickReadSettings,
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  static readCollection<TReturnType>(
+    array: Uint8Array,
+    settings: MagickReadSettings,
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static readCollection<TReturnType>(
+    array: Uint8Array,
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  static readCollection<TReturnType>(
+    array: Uint8Array,
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static readCollection<TReturnType>(
+    fileName: string,
+    settings: MagickReadSettings,
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  static readCollection<TReturnType>(
+    fileName: string,
+    settings: MagickReadSettings,
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static readCollection<TReturnType>(
+    fileName: string,
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  static readCollection<TReturnType>(
+    fileName: string,
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static readCollection<TReturnType>(
+    arrayOrFileName: Uint8Array | string,
+    formatOrSettingsOrFunc:
+      | MagickFormat
       | MagickReadSettings
-      | ((images: IMagickImageCollection) => void | Promise<void>),
-    func?: (images: IMagickImageCollection) => void | Promise<void>,
-  ): void | Promise<void> {
+      | ((
+        images: IMagickImageCollection,
+      ) => TReturnType | Promise<TReturnType>),
+    func?: (
+      images: IMagickImageCollection,
+    ) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
     const collection = MagickImageCollection.create();
     return collection._use((images) => {
-      if (funcOrSettings instanceof MagickReadSettings) {
-        if (typeof fileNameOrArray === "string") {
-          images.read(fileNameOrArray, funcOrSettings);
-        } else {
-          images.read(fileNameOrArray, funcOrSettings);
-        }
-
-        if (func !== undefined) {
-          return func(images);
-        }
+      let callback = func;
+      let settings: MagickReadSettings | undefined = undefined;
+      if (formatOrSettingsOrFunc instanceof MagickReadSettings) {
+        settings = formatOrSettingsOrFunc;
+      } else if (typeof formatOrSettingsOrFunc === "string") {
+        settings = new MagickReadSettings();
+        settings.format = formatOrSettingsOrFunc;
       } else {
-        if (typeof fileNameOrArray === "string") {
-          images.read(fileNameOrArray);
-        } else {
-          images.read(fileNameOrArray);
-        }
-
-        return funcOrSettings(images);
+        callback = formatOrSettingsOrFunc;
       }
+
+      if (typeof arrayOrFileName === "string") {
+        images.read(arrayOrFileName, settings);
+      } else {
+        images.read(arrayOrFileName, settings);
+      }
+
+      /* eslint-disable-next-line @typescript-eslint/no-non-null-assertion */
+      return callback!(images);
     });
   }
 
-  static readFromCanvas(
+  static readFromCanvas<TReturnType>(
     canvas: HTMLCanvasElement,
-    func: (image: IMagickImage) => void,
-  ): void;
-  static readFromCanvas(
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  static readFromCanvas<TReturnType>(
     canvas: HTMLCanvasElement,
-    func: (image: IMagickImage) => Promise<void>,
-  ): Promise<void>;
-  static readFromCanvas(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static readFromCanvas<TReturnType>(
     canvas: HTMLCanvasElement,
-    func: (image: IMagickImage) => void | Promise<void>,
-  ): void | Promise<void> {
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
     return MagickImage._use((image) => {
       image.readFromCanvas(canvas);
       return func(image);
