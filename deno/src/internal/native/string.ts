@@ -16,17 +16,17 @@ export function _createString(instance: number): string | null {
 
 /** @internal */
 export function _withNativeString<TReturnType>(
-  native: ImageMagickApi,
+  api: ImageMagickApi,
   str: string,
   func: (instance: number) => TReturnType,
 ): TReturnType {
-  const length = native.lengthBytesUTF8(str) + 1;
-  const instance = native._malloc(length);
+  const length = api.lengthBytesUTF8(str) + 1;
+  const instance = api._malloc(length);
   try {
-    native.stringToUTF8(str, instance, length);
+    api.stringToUTF8(str, instance, length);
     return func(instance);
   } finally {
-    native._free(instance);
+    api._free(instance);
   }
 }
 

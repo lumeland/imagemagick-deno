@@ -9,9 +9,17 @@ export * from "./channel-statistics.ts";
 
 export * from "./channels.ts";
 
+export * from "./chromaticity-info.ts";
+
+export * from "./class-type.ts";
+
 export * from "./color-space.ts";
 
+export * from "./color-type.ts";
+
 export * from "./composite-operator.ts";
+
+export * from "./compression-method.ts";
 
 export * from "./defines/define.ts";
 
@@ -20,6 +28,10 @@ export * from "./defines/defines-creator.ts";
 export * from "./defines/defines.ts";
 
 export * from "./defines/magick-define.ts";
+
+export * from "./density-unit.ts";
+
+export * from "./density.ts";
 
 export * from "./disposable.ts";
 
@@ -96,6 +108,8 @@ export * from "./pixel-interpolate-method.ts";
 export * from "./pixels/pixel-collection.ts";
 
 export * from "./point.ts";
+
+export * from "./primary-info.ts";
 
 export * from "./profiles/image-profile.ts";
 

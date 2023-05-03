@@ -1,5 +1,6 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
+import { ColorType } from "../color-type.ts";
 import { Disposable } from "../internal/disposable.ts";
 import { IDefines } from "../defines/defines.ts";
 import { MagickFormat } from "../magick-format.ts";
@@ -21,6 +22,8 @@ export class MagickSettings {
 
   backgroundColor?: MagickColor;
 
+  colorType?: ColorType;
+
   fillColor?: MagickColor;
 
   font?: string;
@@ -32,6 +35,10 @@ export class MagickSettings {
   strokeColor?: MagickColor;
 
   strokeWidth?: number;
+
+  textInterlineSpacing?: number;
+
+  textKerning?: number;
 
   getDefine(name: string): string;
   getDefine(format: MagickFormat, name: string): string;

@@ -93,11 +93,13 @@ export class MagickFormatInfo {
               "",
             );
             const supportsMultipleFrames =
-              ImageMagick._api._MagickFormatInfo_IsMultiFrame_Get(info) == 1;
+              ImageMagick._api._MagickFormatInfo_SupportsMultipleFrames_Get(
+                info,
+              ) == 1;
             const supportsReading =
-              ImageMagick._api._MagickFormatInfo_IsReadable_Get(info) == 1;
+              ImageMagick._api._MagickFormatInfo_SupportsReading_Get(info) == 1;
             const supportsWriting =
-              ImageMagick._api._MagickFormatInfo_IsWritable_Get(info) == 1;
+              ImageMagick._api._MagickFormatInfo_SupportsWriting_Get(info) == 1;
             result[i] = new MagickFormatInfo(
               format,
               description,

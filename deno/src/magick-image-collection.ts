@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0.
 import { Disposable } from "./internal/disposable.ts";
 import { DisposableArray } from "./internal/disposable-array.ts";
+import { EvaluateOperator } from "./evaluate-operator.ts";
 import { Exception } from "./internal/exception/exception.ts";
 import { IDisposable } from "./disposable.ts";
 import { ImageMagick } from "./image-magick.ts";
@@ -45,6 +46,32 @@ export interface IMagickImageCollection
     func: (images: IMagickImageCollection) => Promise<TReturnType>,
   ): Promise<TReturnType>;
 
+  appendHorizontally<TReturnType>(
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  appendHorizontally<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  appendVertically<TReturnType>(
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  appendVertically<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  clone<TReturnType>(
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  clone<TReturnType>(
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  evaluate<TReturnType>(
+    evaluateOperator: EvaluateOperator,
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  evaluate<TReturnType>(
+    evaluateOperator: EvaluateOperator,
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
   flatten<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
   flatten<TReturnType>(
     func: (image: IMagickImage) => Promise<TReturnType>,
@@ -89,6 +116,82 @@ export class MagickImageCollection extends Array<MagickImage>
       image.dispose();
       image = this.pop();
     }
+  }
+
+  appendHorizontally<TReturnType>(
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  appendHorizontally<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  appendHorizontally<TReturnType>(
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    return this.createImage((instance, exception) => {
+      return ImageMagick._api._MagickImageCollection_Append(
+        instance,
+        0,
+        exception.ptr,
+      );
+    }, func);
+  }
+
+  appendVertically<TReturnType>(
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  appendVertically<TReturnType>(
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  appendVertically<TReturnType>(
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    return this.createImage((instance, exception) => {
+      return ImageMagick._api._MagickImageCollection_Append(
+        instance,
+        1,
+        exception.ptr,
+      );
+    }, func);
+  }
+
+  clone<TReturnType>(
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  clone<TReturnType>(
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  clone<TReturnType>(
+    func: (
+      images: IMagickImageCollection,
+    ) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    const images = MagickImageCollection.create();
+    for (let i = 0; i < this.length; i++) {
+      images.push(MagickImage._clone(this[i]));
+    }
+
+    return images._use(func);
+  }
+
+  evaluate<TReturnType>(
+    evaluateOperator: EvaluateOperator,
+    func: (image: IMagickImage) => TReturnType,
+  ): TReturnType;
+  evaluate<TReturnType>(
+    evaluateOperator: EvaluateOperator,
+    func: (image: IMagickImage) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  evaluate<TReturnType>(
+    evaluateOperator: EvaluateOperator,
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    return this.createImage((instance, exception) => {
+      return ImageMagick._api._MagickImageCollection_Evaluate(
+        instance,
+        evaluateOperator,
+        exception.ptr,
+      );
+    }, func);
   }
 
   flatten<TReturnType>(func: (image: IMagickImage) => TReturnType): TReturnType;
@@ -318,6 +421,27 @@ export class MagickImageCollection extends Array<MagickImage>
     return Object.create(MagickImageCollection.prototype);
   }
 
+  private createImage<TReturnType>(
+    createImages: (instance: number, exception: Exception) => number,
+    func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
+  ): TReturnType | Promise<TReturnType> {
+    this.throwIfEmpty();
+
+    try {
+      this.attachImages();
+
+      const result = Exception.use((exception) => {
+        const images = createImages(this[0]._instance, exception);
+        return this.checkResult(images, exception);
+      });
+
+      const image = MagickImage._createFromImage(result, this.getSettings());
+      return image._use(func);
+    } finally {
+      this.detachImages();
+    }
+  }
+
   private static createSettings(settings?: MagickReadSettings): MagickSettings {
     if (settings == null) {
       return new MagickSettings();
@@ -340,25 +464,13 @@ export class MagickImageCollection extends Array<MagickImage>
     layerMethod: LayerMethod,
     func: (image: IMagickImage) => TReturnType | Promise<TReturnType>,
   ): TReturnType | Promise<TReturnType> {
-    this.throwIfEmpty();
-
-    try {
-      this.attachImages();
-
-      const result = Exception.use((exception) => {
-        const images = ImageMagick._api._MagickImageCollection_Merge(
-          this[0]._instance,
-          layerMethod,
-          exception.ptr,
-        );
-        return this.checkResult(images, exception);
-      });
-
-      const image = MagickImage._createFromImage(result, this.getSettings());
-      return image._use(func);
-    } finally {
-      this.detachImages();
-    }
+    return this.createImage((instance, exception) => {
+      return ImageMagick._api._MagickImageCollection_Merge(
+        instance,
+        layerMethod,
+        exception.ptr,
+      );
+    }, func);
   }
 
   private throwIfEmpty() {

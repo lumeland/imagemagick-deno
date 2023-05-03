@@ -6,7 +6,7 @@ rm magick-wasm.tgz
 rm test/unsplash-blur.jpg
 
 # Clone the repo
-git clone --depth 1 --branch 0.0.19 https://github.com/dlemstra/magick-wasm.git
+git clone --depth 1 --branch main https://github.com/dlemstra/magick-wasm.git
 
 # Download the wasm file
 npm install @dlemstra/magick-native
@@ -15,6 +15,7 @@ npm install @dlemstra/magick-native
 deno run --unstable --allow-write --allow-read to_deno.js
 
 # Copy the wasm code
+cp node_modules/@dlemstra/magick-native/magick.wasm deno/src/wasm/magick_native.wasm
 cp node_modules/@dlemstra/magick-native/magick.js deno/src/wasm/magick_native.js
 echo "\nexport default MagickNative;" >> deno/src/wasm/magick_native.js
 

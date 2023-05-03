@@ -203,7 +203,7 @@ export class MagickGeometry {
   }
 
   /** @internal */
-  static fromRectangle(rectangle: number): MagickGeometry {
+  static _fromRectangle(rectangle: number): MagickGeometry {
     if (rectangle === 0) {
       throw new MagickError("unable to allocate memory");
     }
@@ -220,7 +220,7 @@ export class MagickGeometry {
   }
 
   /** @internal */
-  toRectangle(func: (rectangle: number) => void) {
+  _toRectangle(func: (rectangle: number) => void) {
     const rectangle = ImageMagick._api._MagickRectangle_Create();
     if (rectangle === 0) {
       throw new MagickError("unable to allocate memory");

@@ -39,6 +39,13 @@ export class NativeMagickSettings extends NativeInstance {
       });
     }
 
+    if (settings.colorType !== undefined) {
+      ImageMagick._api._MagickSettings_ColorType_Set(
+        this._instance,
+        settings.colorType,
+      );
+    }
+
     if (settings.fillColor !== undefined) {
       this.setOption("fill", settings.fillColor.toString());
     }
@@ -70,6 +77,17 @@ export class NativeMagickSettings extends NativeInstance {
 
     if (settings.strokeWidth !== undefined) {
       this.setOption("strokeWidth", settings.strokeWidth.toString());
+    }
+
+    if (settings.textInterlineSpacing !== undefined) {
+      this.setOption(
+        "interline-spacing",
+        settings.textInterlineSpacing.toString(),
+      );
+    }
+
+    if (settings.textKerning !== undefined) {
+      this.setOption("kerning", settings.textKerning.toString());
     }
 
     for (const option in settings._options) {

@@ -3,12 +3,12 @@
 import {
   ImageMagick,
   IMagickImage,
-  initializeImageMagick,
+  initialize,
   MagickFormat,
 } from "../deno/mod.ts";
 
 console.log("Initialize");
-await initializeImageMagick(); // make sure to initialize first!
+await initialize();
 
 console.log("Read");
 const data: Uint8Array = await Deno.readFile("test/unsplash.jpg");
@@ -22,8 +22,8 @@ await ImageMagick.read(data, async (img: IMagickImage) => {
 
   console.log("write");
   await img.write(
-    (data: Uint8Array) => Deno.writeFile("test/unsplash-blur.png", data),
     MagickFormat.Png,
+    (data: Uint8Array) => Deno.writeFile("test/unsplash-blur.png", data),
   );
 });
 

@@ -7,27 +7,27 @@ Scripts to transform the source code of
 sh run.sh
 ```
 
-To import Imagemagick in your Deno project:
+To import ImageMagick into your Deno project:
 
 ```ts
 import {
   ImageMagick,
   IMagickImage,
-  initializeImageMagick,
+  initialize,
   MagickFormat,
 } from "https://deno.land/x/imagemagick_deno/mod.ts";
 
-await initializeImageMagick(); // make sure to initialize first!
+await initialize(); // make sure to initialize first!
 
 const data: Uint8Array = await Deno.readFile("image.jpg");
 
-ImageMagick.read(data, (img: IMagickImage) => {
+await ImageMagick.read(data, (img: IMagickImage) => {
   img.resize(200, 100);
   img.blur(20, 6);
 
-  img.write(
-    (data: Uint8Array) => Deno.writeFile("image-blur.jpg", data),
+  await img.write(
     MagickFormat.Jpeg,
+    (data: Uint8Array) => Deno.writeFile("image-blur.jpg", data),
   );
 });
 ```
