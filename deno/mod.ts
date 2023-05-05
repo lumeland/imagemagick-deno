@@ -19,6 +19,6 @@ export async function initialize() {
   }
 
   const response = await fetch(wasmUrl);
-  await cache.put(wasmUrl, response);
-  await initializeImageMagick(await response.clone().arrayBuffer());
+  await cache.put(wasmUrl, response.clone());
+  await initializeImageMagick(await response.arrayBuffer());
 }
