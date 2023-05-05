@@ -22,8 +22,8 @@ await ImageMagick.read(data, async (img: IMagickImage) => {
 
   console.log("write");
   await img.write(
-    MagickFormat.Png,
-    (data: Uint8Array) => Deno.writeFile("test/unsplash-blur.png", data),
+    MagickFormat.Avif,
+    (data: Uint8Array) => Deno.writeFile("test/unsplash-blur.avif", data),
   );
 });
 
