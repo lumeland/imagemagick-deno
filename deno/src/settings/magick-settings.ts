@@ -2,7 +2,9 @@
 // Licensed under the Apache License, Version 2.0.
 import { ColorType } from "../color-type.ts";
 import { Disposable } from "../internal/disposable.ts";
+import { Endian } from "../endian.ts";
 import { IDefines } from "../defines/defines.ts";
+import { Interlace } from "../interlace.ts";
 import { MagickFormat } from "../magick-format.ts";
 import { MagickColor } from "../magick-color.ts";
 import { NativeMagickSettings } from "./native-magick-settings.ts";
@@ -20,9 +22,13 @@ export class MagickSettings {
   /** @internal */
   _quality?: number;
 
+  antiAlias?: boolean;
+
   backgroundColor?: MagickColor;
 
   colorType?: ColorType;
+
+  endian?: Endian;
 
   fillColor?: MagickColor;
 
@@ -31,6 +37,8 @@ export class MagickSettings {
   fontPointsize?: number;
 
   format?: MagickFormat;
+
+  interlace?: Interlace;
 
   strokeColor?: MagickColor;
 

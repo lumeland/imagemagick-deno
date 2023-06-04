@@ -1,5 +1,6 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
+import { ByteArray } from "./byte-array.ts";
 import { Disposable } from "./internal/disposable.ts";
 import { DisposableArray } from "./internal/disposable-array.ts";
 import { EvaluateOperator } from "./evaluate-operator.ts";
@@ -93,14 +94,18 @@ export interface IMagickImageCollection
     func: (image: IMagickImage) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   read(fileName: string, settings?: MagickReadSettings): void;
-  read(array: Uint8Array, settings?: MagickReadSettings): void;
+  read(array: ByteArray, settings?: MagickReadSettings): void;
+  write<TReturnType>(func: (data: Uint8Array) => TReturnType): TReturnType;
   write<TReturnType>(
+    format: MagickFormat,
     func: (data: Uint8Array) => TReturnType,
-    format?: MagickFormat,
   ): TReturnType;
   write<TReturnType>(
     func: (data: Uint8Array) => Promise<TReturnType>,
-    format?: MagickFormat,
+  ): Promise<TReturnType>;
+  write<TReturnType>(
+    format: MagickFormat,
+    func: (data: Uint8Array) => Promise<TReturnType>,
   ): Promise<TReturnType>;
 }
 
@@ -270,16 +275,26 @@ export class MagickImageCollection extends Array<MagickImage>
   }
 
   read(fileName: string, settings?: MagickReadSettings): void;
-  read(array: Uint8Array, settings?: MagickReadSettings): void;
+  read(array: ByteArray, settings?: MagickReadSettings): void;
   read(
-    fileNameOrArray: string | Uint8Array,
+    fileNameOrArray: string | ByteArray,
     settings?: MagickReadSettings,
   ): void {
     this.dispose();
 
     Exception.use((exception) => {
       const readSettings = MagickImageCollection.createSettings(settings);
-      if (fileNameOrArray instanceof Uint8Array) {
+      if (typeof fileNameOrArray === "string") {
+        readSettings._fileName = fileNameOrArray;
+
+        readSettings._use((settings) => {
+          const instances = ImageMagick._api._MagickImageCollection_ReadFile(
+            settings._instance,
+            exception.ptr,
+          );
+          this.addImages(instances, readSettings);
+        });
+      } else {
         readSettings._use((settings) => {
           const length = fileNameOrArray.byteLength;
           let data = 0;
@@ -300,47 +315,46 @@ export class MagickImageCollection extends Array<MagickImage>
             }
           }
         });
-      } else {
-        readSettings._fileName = fileNameOrArray;
-
-        readSettings._use((settings) => {
-          const instances = ImageMagick._api._MagickImageCollection_ReadFile(
-            settings._instance,
-            exception.ptr,
-          );
-          this.addImages(instances, readSettings);
-        });
       }
     });
   }
 
+  write<TReturnType>(func: (data: Uint8Array) => TReturnType): TReturnType;
   write<TReturnType>(
+    format: MagickFormat,
     func: (data: Uint8Array) => TReturnType,
-    format?: MagickFormat,
   ): TReturnType;
   write<TReturnType>(
     func: (data: Uint8Array) => Promise<TReturnType>,
-    format?: MagickFormat,
   ): Promise<TReturnType>;
   write<TReturnType>(
-    func: (data: Uint8Array) => TReturnType | Promise<TReturnType>,
-    format?: MagickFormat,
+    format: MagickFormat,
+    func: (data: Uint8Array) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  write<TReturnType>(
+    funcOrFormat:
+      | ((data: Uint8Array) => TReturnType | Promise<TReturnType>)
+      | MagickFormat,
+    func?: (data: Uint8Array) => TReturnType | Promise<TReturnType>,
   ): TReturnType | Promise<TReturnType> {
     this.throwIfEmpty();
 
     let data = 0;
     let length = 0;
+    const image = this[0];
+    const settings = this.getSettings();
+
+    if (func !== undefined) {
+      settings.format = funcOrFormat as MagickFormat;
+    } else {
+      func = funcOrFormat as (
+        data: Uint8Array,
+      ) => TReturnType | Promise<TReturnType>;
+      settings.format = image.format;
+    }
 
     Exception.use((exception) => {
       Pointer.use((pointer) => {
-        const image = this[0];
-        const settings = this.getSettings();
-        if (format !== undefined) {
-          settings.format = format;
-        } else {
-          settings.format = image.format;
-        }
-
         settings._use((nativeSettings) => {
           try {
             this.attachImages();
@@ -362,8 +376,14 @@ export class MagickImageCollection extends Array<MagickImage>
     return Disposable._disposeAfterExecution(array, array.func);
   }
 
-  static create(): IMagickImageCollection {
-    return MagickImageCollection.createObject();
+  static create(): IMagickImageCollection;
+  static create(array: ByteArray): IMagickImageCollection;
+  static create(arrayOrUndefined?: ByteArray): IMagickImageCollection {
+    const images = MagickImageCollection.createObject();
+    if (arrayOrUndefined !== undefined) {
+      images.read(arrayOrUndefined);
+    }
+    return images;
   }
 
   /** @internal */

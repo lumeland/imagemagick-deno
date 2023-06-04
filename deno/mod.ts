@@ -9,12 +9,6 @@ export async function initialize() {
     return;
   }
 
-  if (typeof caches === "undefined") {
-    const response = await fetch(wasmUrl);
-    await initializeImageMagick(await response.arrayBuffer());
-    return;
-  }
-
   const cache = await caches.open("magick_native");
   const cached = await cache.match(wasmUrl);
 

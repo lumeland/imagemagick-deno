@@ -30,6 +30,13 @@ export class NativeMagickSettings extends NativeInstance {
       );
     }
 
+    if (settings.antiAlias !== undefined) {
+      ImageMagick._api._MagickSettings_AntiAlias_Set(
+        this._instance,
+        settings.antiAlias ? 1 : 0,
+      );
+    }
+
     if (settings.backgroundColor !== undefined) {
       settings.backgroundColor._use((ptr) => {
         ImageMagick._api._MagickSettings_BackgroundColor_Set(
@@ -43,6 +50,13 @@ export class NativeMagickSettings extends NativeInstance {
       ImageMagick._api._MagickSettings_ColorType_Set(
         this._instance,
         settings.colorType,
+      );
+    }
+
+    if (settings.endian !== undefined) {
+      ImageMagick._api._MagickSettings_Endian_Set(
+        this._instance,
+        settings.endian,
       );
     }
 
@@ -69,6 +83,13 @@ export class NativeMagickSettings extends NativeInstance {
       _withString(settings.format, (ptr) => {
         ImageMagick._api._MagickSettings_Format_Set(this._instance, ptr);
       });
+    }
+
+    if (settings.interlace !== undefined) {
+      ImageMagick._api._MagickSettings_Interlace_Set(
+        this._instance,
+        settings.interlace,
+      );
     }
 
     if (settings.strokeColor !== undefined) {

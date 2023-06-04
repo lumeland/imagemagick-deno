@@ -5,6 +5,8 @@ export * from "./alpha-option.ts";
 
 export * from "./auto-threshold-method.ts";
 
+export * from "./byte-array.ts";
+
 export * from "./channel-statistics.ts";
 
 export * from "./channels.ts";
@@ -59,6 +61,8 @@ export * from "./drawables/drawable.ts";
 
 export * from "./drawables/drawing-wand.ts";
 
+export * from "./endian.ts";
+
 export * from "./error-metric.ts";
 
 export * from "./evaluate-operator.ts";
@@ -69,9 +73,13 @@ export * from "./formats/dng/dng-output-color.ts";
 
 export * from "./formats/dng/dng-read-defines.ts";
 
+export * from "./gif-dispose-method.ts";
+
 export * from "./gravity.ts";
 
 export * from "./image-magick.ts";
+
+export * from "./interlace.ts";
 
 export * from "./magick-color.ts";
 

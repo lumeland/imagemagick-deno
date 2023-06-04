@@ -11,11 +11,12 @@ import { MagickError } from "./magick-error.ts";
 import { MagickFormat } from "./magick-format.ts";
 import { MagickReadSettings } from "./settings/magick-read-settings.ts";
 import { _withNativeString } from "./internal/native/string.ts";
+import { ByteArray } from "./byte-array.ts";
 
 class WasmLocator implements IWasmLocator {
   private _wasmLocation: string | undefined;
 
-  constructor(wasmLocationOrData?: string | Buffer | Uint8Array) {
+  constructor(wasmLocationOrData?: string | ByteArray) {
     if (wasmLocationOrData !== undefined) {
       if (typeof wasmLocationOrData === "string") {
         this._wasmLocation = wasmLocationOrData;
@@ -25,7 +26,7 @@ class WasmLocator implements IWasmLocator {
     }
   }
 
-  wasmBinary?: Uint8Array | Uint8Array;
+  wasmBinary?: ByteArray;
 
   locateFile = (path: string, scriptDirectory: string): string => {
     let wasmLocation = this._wasmLocation;
@@ -40,12 +41,12 @@ class WasmLocator implements IWasmLocator {
 
 export class ImageMagick {
   private readonly loader: (
-    wasmLocationOrData?: string | Buffer | Uint8Array,
+    wasmLocationOrData?: string | ByteArray,
   ) => Promise<void>;
   private api?: ImageMagickApi;
 
   private constructor() {
-    this.loader = (wasmLocationOrData?: string | Buffer | Uint8Array) =>
+    this.loader = (wasmLocationOrData?: string | ByteArray) =>
       new Promise((resolve, reject) => {
         if (this.api !== undefined) {
           resolve();
@@ -72,9 +73,7 @@ export class ImageMagick {
   static _create = (): ImageMagick => new ImageMagick();
 
   /** @internal */
-  async _initialize(
-    wasmLocationOrData?: string | Buffer | Uint8Array,
-  ): Promise<void> {
+  async _initialize(wasmLocationOrData?: string | ByteArray): Promise<void> {
     await this.loader(wasmLocationOrData);
   }
 
@@ -107,31 +106,31 @@ export class ImageMagick {
     func: (image: IMagickImage) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   static read<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     format: MagickFormat,
     func: (image: IMagickImage) => TReturnType,
   ): TReturnType;
   static read<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     format: MagickFormat,
     func: (image: IMagickImage) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   static read<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     settings: MagickReadSettings,
     func: (image: IMagickImage) => TReturnType,
   ): TReturnType;
   static read<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     settings: MagickReadSettings,
     func: (image: IMagickImage) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   static read<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     func: (image: IMagickImage) => TReturnType,
   ): TReturnType;
   static read<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     func: (image: IMagickImage) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   static read<TReturnType>(
@@ -163,7 +162,7 @@ export class ImageMagick {
     func: (image: IMagickImage) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   static read<TReturnType>(
-    colorOrArrayOrFileName: MagickColor | Uint8Array | string,
+    colorOrArrayOrFileName: MagickColor | ByteArray | string,
     widthOrFormatOrSetttingsOrFunc:
       | number
       | MagickFormat
@@ -215,55 +214,55 @@ export class ImageMagick {
   }
 
   static readCollection<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     format: MagickFormat,
     func: (images: IMagickImageCollection) => TReturnType,
   ): TReturnType;
   static readCollection<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     format: MagickFormat,
     func: (images: IMagickImageCollection) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   static readCollection<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     settings: MagickReadSettings,
     func: (images: IMagickImageCollection) => TReturnType,
   ): TReturnType;
   static readCollection<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     settings: MagickReadSettings,
     func: (images: IMagickImageCollection) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   static readCollection<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     settings: MagickReadSettings,
     func: (images: IMagickImageCollection) => TReturnType,
   ): TReturnType;
   static readCollection<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     settings: MagickReadSettings,
     func: (images: IMagickImageCollection) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   static readCollection<TReturnType>(
-    array: Uint8Array,
+    array: ByteArray,
     func: (images: IMagickImageCollection) => TReturnType,
   ): TReturnType;
   static readCollection<TReturnType>(
-    array: Uint8Array,
-    func: (images: IMagickImageCollection) => Promise<TReturnType>,
-  ): Promise<TReturnType>;
-  static readCollection<TReturnType>(
-    fileName: string,
-    settings: MagickReadSettings,
-    func: (images: IMagickImageCollection) => TReturnType,
-  ): TReturnType;
-  static readCollection<TReturnType>(
-    fileName: string,
-    settings: MagickReadSettings,
+    array: ByteArray,
     func: (images: IMagickImageCollection) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   static readCollection<TReturnType>(
     fileName: string,
+    settings: MagickReadSettings,
+    func: (images: IMagickImageCollection) => TReturnType,
+  ): TReturnType;
+  static readCollection<TReturnType>(
+    fileName: string,
+    settings: MagickReadSettings,
+    func: (images: IMagickImageCollection) => Promise<TReturnType>,
+  ): Promise<TReturnType>;
+  static readCollection<TReturnType>(
+    fileName: string,
     func: (images: IMagickImageCollection) => TReturnType,
   ): TReturnType;
   static readCollection<TReturnType>(
@@ -271,7 +270,7 @@ export class ImageMagick {
     func: (images: IMagickImageCollection) => Promise<TReturnType>,
   ): Promise<TReturnType>;
   static readCollection<TReturnType>(
-    arrayOrFileName: Uint8Array | string,
+    arrayOrFileName: ByteArray | string,
     formatOrSettingsOrFunc:
       | MagickFormat
       | MagickReadSettings
@@ -329,7 +328,7 @@ export class ImageMagick {
 const instance = ImageMagick._create();
 
 export async function initializeImageMagick(
-  wasmLocationOrData?: string | Buffer | Uint8Array,
+  wasmLocationOrData?: string | ByteArray,
 ): Promise<void> {
   await instance._initialize(wasmLocationOrData);
 }
