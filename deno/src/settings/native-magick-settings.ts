@@ -46,10 +46,38 @@ export class NativeMagickSettings extends NativeInstance {
       });
     }
 
+    if (settings.colorSpace !== undefined) {
+      ImageMagick._api._MagickSettings_ColorSpace_Set(
+        this._instance,
+        settings.colorSpace,
+      );
+    }
+
     if (settings.colorType !== undefined) {
       ImageMagick._api._MagickSettings_ColorType_Set(
         this._instance,
         settings.colorType,
+      );
+    }
+
+    if (settings.compression !== undefined) {
+      ImageMagick._api._MagickSettings_Compression_Set(
+        this._instance,
+        settings.compression,
+      );
+    }
+
+    if (settings.debug !== undefined) {
+      ImageMagick._api._MagickSettings_Debug_Set(
+        this._instance,
+        settings.debug ? 1 : 0,
+      );
+    }
+
+    if (settings.depth !== undefined) {
+      ImageMagick._api._MagickSettings_Depth_Set(
+        this._instance,
+        settings.depth,
       );
     }
 

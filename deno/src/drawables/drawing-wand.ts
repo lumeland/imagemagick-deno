@@ -11,6 +11,8 @@ import { MagickColor } from "../magick-color.ts";
 import { MagickSettings } from "../settings/magick-settings.ts";
 import { NativeInstance } from "../native-instance.ts";
 import { PaintMethod } from "../paint-method.ts";
+import { TextAlignment } from "../text-alignment.ts";
+import { TextDecoration } from "../text-decoration.ts";
 import { _withString } from "../internal/native/string.ts";
 
 export interface IDrawingWand extends IDisposable {
@@ -36,6 +38,13 @@ export interface IDrawingWand extends IDisposable {
     cornerHeight: number,
   ): void;
   text(x: number, y: number, value: string): void;
+  textAlignment(value: TextAlignment): void;
+  textAntialias(value: boolean): void;
+  textDecoration(value: TextDecoration): void;
+  textInterlineSpacing(value: number): void;
+  textInterwordspacing(value: number): void;
+  textKerning(value: number): void;
+  textUnderColor(value: MagickColor): void;
 }
 
 export class DrawingWand extends NativeInstance implements IDrawingWand {
@@ -166,6 +175,78 @@ export class DrawingWand extends NativeInstance implements IDrawingWand {
           this._instance,
           x,
           y,
+          valuePtr,
+          exception,
+        );
+      });
+    });
+  }
+
+  textAlignment(value: TextAlignment): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._DrawingWand_TextAlignment(
+        this._instance,
+        value,
+        exception,
+      );
+    });
+  }
+
+  textAntialias(value: boolean): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._DrawingWand_TextAntialias(
+        this._instance,
+        value ? 1 : 0,
+        exception,
+      );
+    });
+  }
+
+  textDecoration(value: TextDecoration): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._DrawingWand_TextDecoration(
+        this._instance,
+        value,
+        exception,
+      );
+    });
+  }
+
+  textInterlineSpacing(value: number): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._DrawingWand_TextInterlineSpacing(
+        this._instance,
+        value,
+        exception,
+      );
+    });
+  }
+
+  textInterwordspacing(value: number): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._DrawingWand_TextInterwordSpacing(
+        this._instance,
+        value,
+        exception,
+      );
+    });
+  }
+
+  textKerning(value: number): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._DrawingWand_TextKerning(
+        this._instance,
+        value,
+        exception,
+      );
+    });
+  }
+
+  textUnderColor(value: MagickColor): void {
+    Exception.usePointer((exception) => {
+      value._use((valuePtr) => {
+        ImageMagick._api._DrawingWand_TextUnderColor(
+          this._instance,
           valuePtr,
           exception,
         );

@@ -47,6 +47,7 @@ import {
   IPixelCollection,
   PixelCollection,
 } from "./pixels/pixel-collection.ts";
+import { PixelIntensityMethod } from "./pixel-intensity-method.ts";
 import { PixelInterpolateMethod } from "./pixel-interpolate-method.ts";
 import { Point } from "./point.ts";
 import { Pointer } from "./internal/pointer/pointer.ts";
@@ -325,6 +326,8 @@ export interface IMagickImage extends IDisposable {
   getPixels<TReturnType>(
     func: (pixels: IPixelCollection) => Promise<TReturnType>,
   ): Promise<TReturnType>;
+  grayscale(): void;
+  grayscale(method: PixelIntensityMethod): void;
   histogram(): Map<string, number>;
   inverseContrast(): void;
   inverseOpaque(target: MagickColor, fill: MagickColor): void;
@@ -399,6 +402,9 @@ export interface IMagickImage extends IDisposable {
     func: (images: IMagickImageCollection) => Promise<TReturnType>,
     channels: Channels,
   ): Promise<TReturnType>;
+  sepiaTone(): void;
+  sepiaTone(threshold: number): void;
+  sepiaTone(threshold: Percentage): void;
   setArtifact(name: string, value: string): void;
   setArtifact(name: string, value: boolean): void;
   setAttribute(name: string, value: string): void;
@@ -417,6 +423,9 @@ export interface IMagickImage extends IDisposable {
     channels: Channels,
   ): void;
   splice(geometry: MagickGeometry): void;
+  solarize(): void;
+  solarize(factor: number): void;
+  solarize(factor: Percentage): void;
   statistics(): IStatistics;
   statistics(channels: Channels): IStatistics;
   strip(): void;
@@ -1762,6 +1771,18 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     return PixelCollection._use(this, func);
   }
 
+  grayscale(
+    method: PixelIntensityMethod = PixelIntensityMethod.Undefined,
+  ): void {
+    Exception.usePointer((exception) => {
+      ImageMagick._api._MagickImage_Grayscale(
+        this._instance,
+        method,
+        exception,
+      );
+    });
+  }
+
   histogram(): Map<string, number> {
     const result = new Map<string, number>();
 
@@ -2132,6 +2153,23 @@ export class MagickImage extends NativeInstance implements IMagickImage {
     });
   }
 
+  sepiaTone(): void;
+  sepiaTone(
+    numberOrPercentage: Percentage | number = new Percentage(80),
+  ): void {
+    Exception.use((exception) => {
+      const threshold = typeof numberOrPercentage === "number"
+        ? new Percentage(numberOrPercentage)
+        : numberOrPercentage;
+      const instance = ImageMagick._api._MagickImage_SepiaTone(
+        this._instance,
+        threshold.toQuantum(),
+        exception.ptr,
+      );
+      this._setInstance(instance, exception);
+    });
+  }
+
   setArtifact(name: string, value: string): void;
   setArtifact(name: string, value: boolean): void;
   setArtifact(name: string, value: string | boolean): void {
@@ -2251,6 +2289,20 @@ export class MagickImage extends NativeInstance implements IMagickImage {
       midpointOrPercentage,
       channelsOrUndefined,
     );
+  }
+
+  solarize(): void;
+  solarize(numberOrPercentage: Percentage | number = new Percentage(50)): void {
+    Exception.use((exception) => {
+      const factor = typeof numberOrPercentage === "number"
+        ? new Percentage(numberOrPercentage)
+        : numberOrPercentage;
+      ImageMagick._api._MagickImage_Solarize(
+        this._instance,
+        factor.toQuantum(),
+        exception.ptr,
+      );
+    });
   }
 
   splice(geometry: MagickGeometry): void {

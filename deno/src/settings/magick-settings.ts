@@ -1,12 +1,14 @@
 // Copyright Dirk Lemstra https://github.com/dlemstra/magick-wasm.
 // Licensed under the Apache License, Version 2.0.
+import { ColorSpace } from "../color-space.ts";
 import { ColorType } from "../color-type.ts";
+import { CompressionMethod } from "../compression-method.ts";
 import { Disposable } from "../internal/disposable.ts";
 import { Endian } from "../endian.ts";
 import { IDefines } from "../defines/defines.ts";
 import { Interlace } from "../interlace.ts";
-import { MagickFormat } from "../magick-format.ts";
 import { MagickColor } from "../magick-color.ts";
+import { MagickFormat } from "../magick-format.ts";
 import { NativeMagickSettings } from "./native-magick-settings.ts";
 
 export class MagickSettings {
@@ -26,7 +28,15 @@ export class MagickSettings {
 
   backgroundColor?: MagickColor;
 
+  colorSpace?: ColorSpace;
+
   colorType?: ColorType;
+
+  compression?: CompressionMethod;
+
+  debug?: boolean;
+
+  depth?: number;
 
   endian?: Endian;
 

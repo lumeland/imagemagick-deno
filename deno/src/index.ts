@@ -55,6 +55,20 @@ export * from "./drawables/drawable-rectangle.ts";
 
 export * from "./drawables/drawable-round-rectangle.ts";
 
+export * from "./drawables/drawable-text-alignment.ts";
+
+export * from "./drawables/drawable-text-antialias.ts";
+
+export * from "./drawables/drawable-text-decoration.ts";
+
+export * from "./drawables/drawable-text-interline-spacing.ts";
+
+export * from "./drawables/drawable-text-interword-spacing.ts";
+
+export * from "./drawables/drawable-text-kerning.ts";
+
+export * from "./drawables/drawable-text-under-color.ts";
+
 export * from "./drawables/drawable-text.ts";
 
 export * from "./drawables/drawable.ts";
@@ -80,6 +94,10 @@ export * from "./gravity.ts";
 export * from "./image-magick.ts";
 
 export * from "./interlace.ts";
+
+export * from "./log-event-types.ts";
+
+export * from "./log-event.ts";
 
 export * from "./magick-color.ts";
 
@@ -111,6 +129,8 @@ export * from "./percentage.ts";
 
 export * from "./pixel-channel.ts";
 
+export * from "./pixel-intensity-method.ts";
+
 export * from "./pixel-interpolate-method.ts";
 
 export * from "./pixels/pixel-collection.ts";
@@ -134,5 +154,9 @@ export * from "./settings/magick-settings.ts";
 export * from "./settings/montage-settings.ts";
 
 export * from "./statistics.ts";
+
+export * from "./text-alignment.ts";
+
+export * from "./text-decoration.ts";
 
 export * from "./virtual-pixel-method.ts";
