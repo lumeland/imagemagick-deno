@@ -21,7 +21,7 @@ await initialize(); // make sure to initialize first!
 
 const data: Uint8Array = await Deno.readFile("image.jpg");
 
-await ImageMagick.read(data, (img: IMagickImage) => {
+await ImageMagick.read(data, async (img: IMagickImage) => {
   img.resize(200, 100);
   img.blur(20, 6);
 
