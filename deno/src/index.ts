@@ -95,6 +95,8 @@ export * from "./image-magick.ts";
 
 export * from "./interlace.ts";
 
+export * from "./kernel.ts";
+
 export * from "./log-event-types.ts";
 
 export * from "./log-event.ts";
@@ -118,6 +120,8 @@ export * from "./magick-image-collection.ts";
 export * from "./magick-image.ts";
 
 export * from "./magick.ts";
+
+export * from "./morphology-method.ts";
 
 export * from "./native-instance.ts";
 
@@ -152,6 +156,8 @@ export * from "./settings/magick-read-settings.ts";
 export * from "./settings/magick-settings.ts";
 
 export * from "./settings/montage-settings.ts";
+
+export * from "./settings/morphology-settings.ts";
 
 export * from "./statistics.ts";
 

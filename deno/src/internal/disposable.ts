@@ -29,7 +29,7 @@ export class Disposable {
       }
     } catch (error) {
       instance.dispose();
-      throw (error);
+      throw error;
     }
   }
 }

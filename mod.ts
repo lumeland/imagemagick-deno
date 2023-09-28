@@ -11,20 +11,25 @@ export async function initialize() {
 
   if (typeof caches === "undefined") {
     const response = await fetch(wasmUrl);
-    await initializeImageMagick(await response.arrayBuffer());
+    await initializeImageMagick(new Int8Array(await response.arrayBuffer()));
     return;
   }
 
   const cache = await caches.open("magick_native");
-  const cached = await cache.match(wasmUrl);
 
-  if (cached) {
-    const wasm = await cached.arrayBuffer();
-    await initializeImageMagick(wasm);
-    return;
+  // Prevent https://github.com/denoland/deno/issues/19696
+  try {
+    const cached = await cache.match(wasmUrl);
+
+    if (cached) {
+      await initializeImageMagick(new Int8Array(await cached.arrayBuffer()));
+      return;
+    }
+  } catch {
+    // Ignore
   }
 
   const response = await fetch(wasmUrl);
   await cache.put(wasmUrl, response.clone());
-  await initializeImageMagick(await response.arrayBuffer());
+  await initializeImageMagick(new Int8Array(await response.arrayBuffer()));
 }

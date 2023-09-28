@@ -39,6 +39,7 @@ import {
 import { MagickReadSettings } from "./settings/magick-read-settings.ts";
 import { MagickRectangle } from "./internal/magick-rectangle.ts";
 import { MagickSettings } from "./settings/magick-settings.ts";
+import { MorphologySettings } from "./settings/morphology-settings.ts";
 import { NativeInstance } from "./native-instance.ts";
 import { OrientationType } from "./orientation-type.ts";
 import { Percentage } from "./percentage.ts";
@@ -366,6 +367,8 @@ export interface IMagickImage extends IDisposable {
     saturation: Percentage,
     hue: Percentage,
   ): void;
+  motionBlur(radius: number, sigma: number, angle: number): void;
+  morphology(settings: MorphologySettings): void;
   negate(): void;
   negate(channels: Channels): void;
   negateGrayScale(): void;
@@ -1989,6 +1992,35 @@ export class MagickImage extends NativeInstance implements IMagickImage {
           modulatePtr,
           exception,
         );
+      });
+    });
+  }
+
+  motionBlur(radius: number, sigma: number, angle: number): void {
+    Exception.use((exception) => {
+      const instance = ImageMagick._api._MagickImage_MotionBlur(
+        this._instance,
+        radius,
+        sigma,
+        angle,
+        exception.ptr,
+      );
+      this._setInstance(instance, exception);
+    });
+  }
+
+  morphology(settings: MorphologySettings): void {
+    Exception.use((exception) => {
+      _withString(settings.kernel, (kernelPtr) => {
+        const instance = ImageMagick._api._MagickImage_Morphology(
+          this._instance,
+          settings.method,
+          kernelPtr,
+          settings.channels,
+          settings.iterations,
+          exception.ptr,
+        );
+        this._setInstance(instance, exception);
       });
     });
   }
