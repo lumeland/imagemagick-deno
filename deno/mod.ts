@@ -1,7 +1,17 @@
 export * from "./src/index.ts";
 import { initializeImageMagick } from "./src/index.ts";
 
-export async function initialize() {
+type InitOptions = {
+  useCache: boolean;
+};
+
+const DEFAULT_OPTIONS: InitOptions = {
+  useCache: true,
+};
+
+export async function initialize(paramOptions: Partial<InitOptions> = {}) {
+  const options = { ...DEFAULT_OPTIONS, ...paramOptions };
+
   const wasmUrl = new URL(import.meta.resolve("./src/wasm/magick_native.wasm"));
 
   if (wasmUrl.protocol === "file:") {
@@ -9,7 +19,7 @@ export async function initialize() {
     return;
   }
 
-  if (typeof caches === "undefined") {
+  if (!options.useCache || typeof caches === "undefined") {
     const response = await fetch(wasmUrl);
     await initializeImageMagick(new Int8Array(await response.arrayBuffer()));
     return;
