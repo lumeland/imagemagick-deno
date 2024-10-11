@@ -1,13 +1,10 @@
-export * from "./src/index.ts";
-import { initializeImageMagick } from "./src/index.ts";
+import { initializeImageMagick } from "npm:@imagemagick/magick-wasm@0.0.31";
+export * from "npm:@imagemagick/magick-wasm@0.0.31";
 
 export async function initialize() {
-  const wasmUrl = new URL(import.meta.resolve("./src/wasm/magick_native.wasm"));
-
-  if (wasmUrl.protocol === "file:") {
-    await initializeImageMagick(await Deno.readFile(wasmUrl));
-    return;
-  }
+  const wasmUrl = new URL(
+    "https://cdn.jsdelivr.net/npm/@imagemagick/magick-wasm@0.0.31/dist/magick.wasm",
+  );
 
   if (typeof caches === "undefined") {
     const response = await fetch(wasmUrl);
@@ -16,17 +13,11 @@ export async function initialize() {
   }
 
   const cache = await caches.open("magick_native");
+  const cached = await cache.match(wasmUrl);
 
-  // Prevent https://github.com/denoland/deno/issues/19696
-  try {
-    const cached = await cache.match(wasmUrl);
-
-    if (cached) {
-      await initializeImageMagick(new Int8Array(await cached.arrayBuffer()));
-      return;
-    }
-  } catch {
-    // Ignore
+  if (cached) {
+    await initializeImageMagick(new Int8Array(await cached.arrayBuffer()));
+    return;
   }
 
   const response = await fetch(wasmUrl);

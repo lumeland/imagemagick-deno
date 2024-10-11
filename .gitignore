@@ -1,7 +1,1 @@
 .vscode
-magick-wasm
-package
-node_modules
-package.json
-package-lock.json
-.npmrc
