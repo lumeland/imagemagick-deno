@@ -1,9 +1,9 @@
-import { initializeImageMagick } from "npm:@imagemagick/magick-wasm@0.0.31";
-export * from "npm:@imagemagick/magick-wasm@0.0.31";
+import { initializeImageMagick } from "npm:@imagemagick/magick-wasm@0.0.35";
+export * from "npm:@imagemagick/magick-wasm@0.0.35";
 
 export async function initialize() {
   const wasmUrl = new URL(
-    "https://cdn.jsdelivr.net/npm/@imagemagick/magick-wasm@0.0.31/dist/magick.wasm",
+    "https://cdn.jsdelivr.net/npm/@imagemagick/magick-wasm@0.0.35/dist/magick.wasm",
   );
 
   if (typeof caches === "undefined") {

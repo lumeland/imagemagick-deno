@@ -1,11 +1,6 @@
 // deno run --allow-write --allow-read --no-check test/test.ts
 
-import {
-  ImageMagick,
-  IMagickImage,
-  initialize,
-  MagickFormat,
-} from "../deno/mod.ts";
+import { ImageMagick, IMagickImage, initialize, MagickFormat } from "../mod.ts";
 
 console.log("Initialize");
 await initialize();
